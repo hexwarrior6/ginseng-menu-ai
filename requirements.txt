@@ -1,0 +1,14 @@
+# Menu.ai Backend Dependencies
+langchain
+langchain-openai
+flask
+flask-cors
+pymongo
+sqlalchemy
+pillow
+opencv-python
+pytesseract
+requests
+python-dotenv
+speechrecognition
+psutil
