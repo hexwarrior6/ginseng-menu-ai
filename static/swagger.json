@@ -1,0 +1,651 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Menu AI API",
+    "description": "智能菜单推荐系统API文档",
+    "version": "1.0.0"
+  },
+  "host": "localhost:5000",
+  "basePath": "/api",
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/dishes": {
+      "get": {
+        "summary": "获取所有菜品列表",
+        "description": "获取所有菜品列表，支持按类别和可用性筛选",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "description": "菜品类别",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "is_available",
+            "in": "query",
+            "description": "是否可用",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取菜品列表",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "dishes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Dish"
+                  }
+                },
+                "total_count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "添加新菜品",
+        "description": "添加新菜品（支持从树莓派摄像头上传图片）",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "菜品信息",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DishCreate"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "菜品添加成功",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "dish_id": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/dishes/{dish_id}": {
+      "get": {
+        "summary": "通过ID获取菜品详情",
+        "description": "通过菜品ID获取详细信息",
+        "parameters": [
+          {
+            "name": "dish_id",
+            "in": "path",
+            "description": "菜品ID",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取菜品详情",
+            "schema": {
+              "$ref": "#/definitions/Dish"
+            }
+          },
+          "404": {
+            "description": "未找到该菜品"
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      },
+      "put": {
+        "summary": "更新菜品信息",
+        "description": "更新指定菜品的信息",
+        "parameters": [
+          {
+            "name": "dish_id",
+            "in": "path",
+            "description": "菜品ID",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "更新的菜品信息",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DishUpdate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "菜品更新成功",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "菜品不存在"
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除菜品",
+        "description": "删除指定菜品",
+        "parameters": [
+          {
+            "name": "dish_id",
+            "in": "path",
+            "description": "菜品ID",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "菜品删除成功",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "菜品不存在"
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/dishes/{dish_id}/availability": {
+      "patch": {
+        "summary": "更新菜品的可用性状态",
+        "description": "更新指定菜品的可用性状态",
+        "parameters": [
+          {
+            "name": "dish_id",
+            "in": "path",
+            "description": "菜品ID",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "可用性状态",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "is_available": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "is_available"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "菜品可用性更新成功",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "菜品不存在"
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/dishes/analyze/text": {
+      "post": {
+        "summary": "通过文本描述分析菜品信息",
+        "description": "通过文本描述分析菜品信息",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "菜品描述",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "文本分析成功",
+            "schema": {
+              "type": "object"
+            }
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/recommendations/guest": {
+      "get": {
+        "summary": "获取访客推荐菜单",
+        "description": "获取访客推荐菜单",
+        "parameters": [
+          {
+            "name": "count",
+            "in": "query",
+            "description": "推荐数量",
+            "required": false,
+            "type": "integer",
+            "default": 5
+          },
+          {
+            "name": "dietary_preference",
+            "in": "query",
+            "description": "饮食偏好",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取推荐菜单",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "recommendations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Recommendation"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/recommendations/user/{user_id}": {
+      "get": {
+        "summary": "获取特定用户的个性化推荐菜单",
+        "description": "获取特定用户的个性化推荐菜单",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "description": "用户ID",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "description": "推荐数量",
+            "required": false,
+            "type": "integer",
+            "default": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功获取用户推荐菜单",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "recommendations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Recommendation"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "用户不存在"
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/recommendations/refresh": {
+      "post": {
+        "summary": "刷新推荐数据",
+        "description": "刷新推荐数据（管理员操作）",
+        "responses": {
+          "202": {
+            "description": "推荐数据刷新任务已启动",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "task_id": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/recommendations/refine": {
+      "post": {
+        "summary": "根据用户反馈优化推荐",
+        "description": "根据用户反馈优化推荐",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "用户反馈",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "user_id": {
+                  "type": "string"
+                },
+                "feedback": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "user_id",
+                "feedback"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "用户偏好已更新",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    },
+    "/recommendations/test/mock": {
+      "get": {
+        "summary": "模拟推荐测试接口",
+        "description": "模拟推荐测试接口",
+        "responses": {
+          "200": {
+            "description": "成功获取模拟推荐数据",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "recommendations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Recommendation"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Dish": {
+      "type": "object",
+      "properties": {
+        "dish_id": {
+          "type": "string",
+          "description": "菜品ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "菜品名称"
+        },
+        "description": {
+          "type": "string",
+          "description": "菜品描述"
+        },
+        "price": {
+          "type": "number",
+          "format": "float",
+          "description": "价格"
+        },
+        "category": {
+          "type": "string",
+          "description": "菜品类别"
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "配料列表"
+        },
+        "allergens": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "过敏原列表"
+        },
+        "nutrition_info": {
+          "type": "object",
+          "description": "营养信息"
+        },
+        "image_path": {
+          "type": "string",
+          "description": "图片路径"
+        },
+        "is_available": {
+          "type": "boolean",
+          "description": "是否可用"
+        }
+      },
+      "required": [
+        "dish_id",
+        "name",
+        "description",
+        "price"
+      ]
+    },
+    "DishCreate": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "菜品名称"
+        },
+        "description": {
+          "type": "string",
+          "description": "菜品描述"
+        },
+        "price": {
+          "type": "number",
+          "format": "float",
+          "description": "价格"
+        },
+        "category": {
+          "type": "string",
+          "description": "菜品类别"
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "配料列表"
+        },
+        "allergens": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "过敏原列表"
+        },
+        "nutrition_info": {
+          "type": "object",
+          "description": "营养信息"
+        },
+        "is_available": {
+          "type": "boolean",
+          "description": "是否可用"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "price"
+      ]
+    },
+    "DishUpdate": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "菜品名称"
+        },
+        "description": {
+          "type": "string",
+          "description": "菜品描述"
+        },
+        "price": {
+          "type": "number",
+          "format": "float",
+          "description": "价格"
+        },
+        "category": {
+          "type": "string",
+          "description": "菜品类别"
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "配料列表"
+        },
+        "allergens": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "过敏原列表"
+        },
+        "nutrition_info": {
+          "type": "object",
+          "description": "营养信息"
+        },
+        "is_available": {
+          "type": "boolean",
+          "description": "是否可用"
+        }
+      }
+    },
+    "Recommendation": {
+      "type": "object",
+      "properties": {
+        "dish_id": {
+          "type": "string",
+          "description": "菜品ID"
+        },
+        "dish_name": {
+          "type": "string",
+          "description": "菜品名称"
+        },
+        "reason": {
+          "type": "string",
+          "description": "推荐理由"
+        },
+        "score": {
+          "type": "number",
+          "format": "float",
+          "description": "推荐分数"
+        }
+      },
+      "required": [
+        "dish_id",
+        "dish_name",
+        "reason",
+        "score"
+      ]
+    }
+  }
+}

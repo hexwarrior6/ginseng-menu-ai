@@ -13,7 +13,58 @@ dish_service = DishService()
 
 @bp.route('/', methods=['POST'])
 def add_dish():
-    """添加新菜品（支持从树莓派摄像头上传图片）"""
+    """
+    添加新菜品（支持从树莓派摄像头上传图片）
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 添加新菜品
+    description: 添加一个新的菜品到菜单中，支持通过图片上传或JSON数据
+    parameters:
+      - name: image
+        in: formData
+        type: file
+        description: 菜品图片文件（可选）
+        required: false
+      - name: name
+        in: formData
+        type: string
+        description: 菜品名称（当上传图片时可选）
+        required: false
+      - name: description
+        in: formData
+        type: string
+        description: 菜品描述（当上传图片时可选）
+        required: false
+      - name: price
+        in: formData
+        type: number
+        format: float
+        description: 菜品价格（当上传图片时可选）
+        required: false
+      - name: body
+        in: body
+        required: false
+        schema:
+          $ref: '#/definitions/DishCreate'
+    responses:
+      201:
+        description: 成功添加菜品
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "菜品添加成功"
+            dish_id:
+              type: string
+              example: "dish_001"
+      400:
+        description: 请求参数错误
+      500:
+        description: 服务器内部错误
+    """
     try:
         # 检查是否有文件上传
         if 'image' in request.files:
@@ -64,7 +115,41 @@ def add_dish():
 
 @bp.route('/', methods=['GET'])
 def get_all_dishes():
-    """获取所有菜品列表"""
+    """
+    获取所有菜品列表
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 获取所有菜品
+    description: 获取所有菜品列表，支持按分类和可用性筛选
+    parameters:
+      - name: category
+        in: query
+        type: string
+        description: 菜品分类筛选
+        required: false
+      - name: is_available
+        in: query
+        type: boolean
+        description: 可用性筛选
+        required: false
+    responses:
+      200:
+        description: 成功返回菜品列表
+        schema:
+          type: object
+          properties:
+            dishes:
+              type: array
+              items:
+                $ref: '#/definitions/Dish'
+            total_count:
+              type: integer
+              example: 10
+      500:
+        description: 服务器内部错误
+    """
     try:
         # 获取查询参数
         category = request.args.get('category')
@@ -96,7 +181,30 @@ def get_all_dishes():
 
 @bp.route('/<dish_id>', methods=['GET'])
 def get_dish_by_id(dish_id):
-    """通过ID获取菜品详情"""
+    """
+    通过ID获取菜品详情
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 获取菜品详情
+    description: 根据菜品ID获取特定菜品的详细信息
+    parameters:
+      - name: dish_id
+        in: path
+        type: string
+        description: 菜品ID
+        required: true
+    responses:
+      200:
+        description: 成功返回菜品信息
+        schema:
+          $ref: '#/definitions/Dish'
+      404:
+        description: 菜品不存在
+      500:
+        description: 服务器内部错误
+    """
     try:
         dish = dish_service.get_dish_by_id(dish_id)
         if dish:
@@ -110,7 +218,41 @@ def get_dish_by_id(dish_id):
 
 @bp.route('/<dish_id>', methods=['PUT'])
 def update_dish(dish_id):
-    """更新菜品信息"""
+    """
+    更新菜品信息
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 更新菜品
+    description: 根据菜品ID更新菜品信息
+    parameters:
+      - name: dish_id
+        in: path
+        type: string
+        description: 菜品ID
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/DishUpdate'
+    responses:
+      200:
+        description: 成功更新菜品
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "菜品更新成功"
+      400:
+        description: 请求参数错误
+      404:
+        description: 菜品不存在
+      500:
+        description: 服务器内部错误
+    """
     try:
         update_data = request.json
         if not update_data:
@@ -127,7 +269,34 @@ def update_dish(dish_id):
 
 @bp.route('/<dish_id>', methods=['DELETE'])
 def delete_dish(dish_id):
-    """删除菜品"""
+    """
+    删除菜品
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 删除菜品
+    description: 根据菜品ID删除菜品
+    parameters:
+      - name: dish_id
+        in: path
+        type: string
+        description: 菜品ID
+        required: true
+    responses:
+      200:
+        description: 成功删除菜品
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "菜品删除成功"
+      404:
+        description: 菜品不存在
+      500:
+        description: 服务器内部错误
+    """
     try:
         success = dish_service.delete_dish(dish_id)
         if success:
@@ -140,7 +309,45 @@ def delete_dish(dish_id):
 
 @bp.route('/<dish_id>/availability', methods=['PATCH'])
 def update_dish_availability(dish_id):
-    """更新菜品的可用性状态"""
+    """
+    更新菜品的可用性状态
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 更新菜品可用性
+    description: 根据菜品ID更新菜品的可用性状态
+    parameters:
+      - name: dish_id
+        in: path
+        type: string
+        description: 菜品ID
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            is_available:
+              type: boolean
+              example: true
+    responses:
+      200:
+        description: 成功更新菜品可用性
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "菜品已设置为可用"
+      400:
+        description: 请求参数错误
+      404:
+        description: 菜品不存在
+      500:
+        description: 服务器内部错误
+    """
     try:
         data = request.json
         if 'is_available' not in data:
@@ -160,7 +367,43 @@ def update_dish_availability(dish_id):
 
 @bp.route('/analyze/text', methods=['POST'])
 def analyze_dish_by_text():
-    """通过文本描述分析菜品信息"""
+    """
+    通过文本描述分析菜品信息
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 文本分析菜品
+    description: 通过文本描述分析菜品的成分、营养信息等
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            description:
+              type: string
+              example: "这是一道宫保鸡丁，主要由鸡肉、花生米等制成"
+    responses:
+      200:
+        description: 成功分析菜品
+        schema:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "宫保鸡丁"
+            ingredients:
+              type: array
+              items:
+                type: string
+              example: ["鸡肉", "花生米", "辣椒"]
+      400:
+        description: 请求参数错误
+      500:
+        description: 服务器内部错误
+    """
     try:
         data = request.json
         if not data or 'description' not in data:

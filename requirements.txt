@@ -3,6 +3,7 @@ langchain
 langchain-openai
 flask
 flask-cors
+flask-swagger-ui
 pymongo
 sqlalchemy
 pillow
