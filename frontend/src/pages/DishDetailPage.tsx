@@ -27,7 +27,7 @@ const DishDetailPage = () => {
           nutritionalInfo: {
             calories: 350,
             protein: 15,
-            carbs: 25,
+            carbohydrates: 25,
             fat: 12
           },
           availability: true,
@@ -135,7 +135,7 @@ const DishDetailPage = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-gray-600">Carbs</p>
-                  <p className="text-2xl font-bold">{dish.nutritionalInfo.carbs}g</p>
+                  <p className="text-2xl font-bold">{dish.nutritionalInfo.carbohydrates}g</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-gray-600">Fat</p>

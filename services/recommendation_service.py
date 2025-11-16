@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import List, Dict, Optional
 import os
 from langchain_openai import OpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+from langchain_core.prompts import PromptTemplate
+# LLMChain已弃用，使用RunnableSequence替代
 from dotenv import load_dotenv
 
 from database import get_db
@@ -47,12 +47,8 @@ class RecommendationService:
             """
         )
         
-        # 创建LLM链
-        self.recommendation_chain = LLMChain(
-            llm=self.llm,
-            prompt=self.recommendation_prompt,
-            verbose=True
-        )
+        # 使用RunnableSequence替代LLMChain
+        self.recommendation_chain = self.recommendation_prompt | self.llm
     
     def get_guest_recommendations(self, user_request: str, sensor_data: Dict = None) -> Dict:
         """访客模式下的菜品推荐"""

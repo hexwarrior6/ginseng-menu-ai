@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { useAppStore } from '../stores/useAppStore';
-import { dishAPI } from '../services/api';
-import type { Dish } from '../types';
+import {useState} from 'react';
+import {useAppStore} from '../stores/useAppStore';
+import {dishAPI} from '../services/api';
+import type {Dish} from '../types';
 
 export const useDishes = () => {
   const { dishes, setDishes, addDish, updateDish, removeDish, setLoading, setError } = useAppStore();
@@ -16,7 +16,7 @@ export const useDishes = () => {
     
     try {
       const response = await dishAPI.getAllDishes();
-      setDishes(response.data);
+      setDishes(response.data.dishes);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to fetch dishes';
       setErrorState(errorMessage);
@@ -33,8 +33,8 @@ export const useDishes = () => {
     setErrorState(null);
     
     try {
-      const response = await dishAPI.getDishById(id);
-      return response.data;
+      // Return response
+      return await dishAPI.getDishById(id);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to fetch dish';
       setErrorState(errorMessage);
@@ -52,8 +52,8 @@ export const useDishes = () => {
     
     try {
       const response = await dishAPI.createDish(dishData);
-      addDish(response.data);
-      return response.data;
+      addDish(response.data.dish);
+      return response.data.dish;
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to create dish';
       setErrorState(errorMessage);
@@ -71,8 +71,8 @@ export const useDishes = () => {
     
     try {
       const response = await dishAPI.updateDish(id, dishData);
-      updateDish(response.data);
-      return response.data;
+      updateDish(response.data.dish);
+      return response.data.dish;
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to update dish';
       setErrorState(errorMessage);
@@ -108,12 +108,50 @@ export const useDishes = () => {
     
     try {
       const response = await dishAPI.analyzeDishImage(image);
-      return response.data;
+      return response.data.dish;
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to analyze dish image';
       setErrorState(errorMessage);
       setError(errorMessage);
       console.error('Error analyzing dish image:', err);
+      return null;
+    } finally {
+      setLoadingState(false);
+    }
+  };
+
+  const analyzeMultipleDishImages = async (images: File[]) => {
+    setLoadingState(true);
+    setErrorState(null);
+    
+    try {
+      const response = await dishAPI.analyzeMultipleDishImages(images);
+      return response.data.dishes;
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Failed to analyze dish images';
+      setErrorState(errorMessage);
+      setError(errorMessage);
+      console.error('Error analyzing dish images:', err);
+      return null;
+    } finally {
+      setLoadingState(false);
+    }
+  };
+
+  const createMultipleDishes = async (dishesData: Partial<Dish>[]) => {
+    setLoadingState(true);
+    setErrorState(null);
+    
+    try {
+      const response = await dishAPI.createMultipleDishes(dishesData);
+      // Add all dishes to the store
+      response.data.dishes.forEach((dish: Dish) => addDish(dish));
+      return response.data.dishes;
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Failed to create dishes';
+      setErrorState(errorMessage);
+      setError(errorMessage);
+      console.error('Error creating dishes:', err);
       return null;
     } finally {
       setLoadingState(false);
@@ -129,6 +167,8 @@ export const useDishes = () => {
     createDish,
     updateDishById,
     deleteDishById,
-    analyzeDishImage
+    analyzeDishImage,
+    analyzeMultipleDishImages,
+    createMultipleDishes
   };
 };

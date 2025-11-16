@@ -30,7 +30,7 @@ const RecommendationPage = () => {
               nutritionalInfo: {
                 calories: 350,
                 protein: 15,
-                carbs: 25,
+                carbohydrates: 25,
                 fat: 12
               },
               availability: true,
@@ -53,7 +53,7 @@ const RecommendationPage = () => {
               nutritionalInfo: {
                 calories: 280,
                 protein: 10,
-                carbs: 30,
+                carbohydrates: 30,
                 fat: 8
               },
               availability: true,

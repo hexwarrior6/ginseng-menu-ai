@@ -13,3 +13,4 @@ requests
 python-dotenv
 speechrecognition
 psutil
+zai-sdk

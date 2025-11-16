@@ -414,3 +414,91 @@ def analyze_dish_by_text():
     except Exception as e:
         print(f"文本分析异常: {e}")
         return jsonify({"error": f"文本分析异常: {str(e)}"}), 500
+
+@bp.route('/batch', methods=['POST'])
+def add_multiple_dishes():
+    """
+    批量添加多个菜品（支持从多张图片上传）
+    
+    ---
+    tags:
+      - 菜品管理
+    summary: 批量添加菜品
+    description: 通过上传多张图片批量添加菜品到菜单中
+    parameters:
+      - name: images
+        in: formData
+        type: array
+        items:
+          type: file
+        description: 菜品图片文件列表
+        required: true
+    responses:
+      201:
+        description: 成功批量添加菜品
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "批量添加菜品成功"
+            dish_ids:
+              type: array
+              items:
+                type: string
+              example: ["dish_001", "dish_002"]
+      400:
+        description: 请求参数错误
+      500:
+        description: 服务器内部错误
+    """
+    try:
+        # 检查是否有文件上传
+        if 'images' not in request.files:
+            return jsonify({"error": "请上传图片文件"}), 400
+        
+        image_files = request.files.getlist('images')
+        if not image_files or all(f.filename == '' for f in image_files):
+            return jsonify({"error": "未选择图片文件"}), 400
+        
+        # 保存图片到临时目录
+        temp_dir = os.getenv('TEMP_IMAGE_PATH', './temp_images/')
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        
+        # 保存所有图片并获取路径
+        image_paths = []
+        for image_file in image_files:
+            if image_file.filename != '':
+                # 生成唯一的文件名
+                unique_filename = f"{uuid.uuid4()}_{image_file.filename}"
+                image_path = os.path.join(temp_dir, unique_filename)
+                image_file.save(image_path)
+                image_paths.append(image_path)
+        
+        if not image_paths:
+            return jsonify({"error": "未保存任何图片文件"}), 400
+        
+        # 调用AI批量分析图片
+        dishes_data = dish_service.analyze_multiple_dishes_by_images(image_paths)
+        
+        # 添加所有菜品到数据库
+        dish_ids = []
+        for i, dish_data in enumerate(dishes_data):
+            # 将图片路径添加到菜品数据中
+            dish_data["image_path"] = image_paths[i] if i < len(image_paths) else ""
+            
+            # 添加菜品到数据库
+            dish = dish_service.add_dish(dish_data)
+            if dish:
+                dish_ids.append(dish.dish_id)
+        
+        return jsonify({
+            "message": "批量添加菜品成功", 
+            "dish_ids": dish_ids,
+            "count": len(dish_ids)
+        }), 201
+        
+    except Exception as e:
+        print(f"批量添加菜品异常: {e}")
+        return jsonify({"error": f"批量添加菜品异常: {str(e)}"}), 500

@@ -1,8 +1,11 @@
 export interface NutritionalInfo {
   calories: number;
   protein: number;
-  carbs: number;
+  carbohydrates: number;
   fat: number;
+  fiber?: number;
+  sodium?: number;
+  sugar?: number;
 }
 
 export interface Dish {

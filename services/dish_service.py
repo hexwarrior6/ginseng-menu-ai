@@ -1,13 +1,15 @@
 import os
-import os
+import sys
+import base64
 from datetime import datetime
 from typing import List, Dict, Optional
 
-import requests
-import base64
-from langchain_openai import OpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+# 添加site-packages到路径
+site_packages_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.venv', 'lib', 'site-packages'))
+if site_packages_path not in sys.path:
+    sys.path.insert(0, site_packages_path)
+
+from zai import ZhipuAiClient
 from dotenv import load_dotenv
 
 from database import get_db
@@ -20,49 +22,157 @@ class DishService:
     """菜品服务类，处理菜品相关的业务逻辑"""
     
     def __init__(self):
-        # 初始化DeepSeek LLM (通过OpenAI兼容接口)
-        self.llm = OpenAI(
-            api_key=os.getenv('DEEPSEEK_API_KEY'),
-            model_name="deepseek-chat",
-            base_url="https://api.deepseek.com/v1"
-        )
+        # 初始化ZhipuAI客户端，从环境变量获取API密钥
+        api_key = os.getenv('ZHIPUAI_API_KEY')
+        if not api_key:
+            raise ValueError("ZHIPUAI_API_KEY环境变量未设置")
+        self.zhipu_client = ZhipuAiClient(api_key=api_key)
         
         # 初始化数据库连接
         self.db = get_db()
-        
-        # 初始化菜品分析的Prompt模板
-        self.dish_analysis_prompt = PromptTemplate(
-            input_variables=["dish_description"],
-            template="""请分析以下菜品，提取其成分、营养信息、辣度等。
-            菜品描述: {dish_description}
-            
-            请以JSON格式输出，包含以下字段：
-            - ingredients: 食材列表
-            - calories: 估计热量(大卡)
-            - protein: 蛋白质含量(克)
-            - carbohydrates: 碳水化合物含量(克)
-            - fat: 脂肪含量(克)
-            - fiber: 纤维含量(克)
-            - sugar: 糖含量(克)
-            - spiciness: 辣度(0-5)
-            - category: 菜品类别(如：主食、肉类、蔬菜、汤品等)
-            - tags: 标签列表(如：健康、家常、油腻等)
-            """
-        )
-        
-        # 创建LLM链
-        self.dish_analysis_chain = LLMChain(
-            llm=self.llm,
-            prompt=self.dish_analysis_prompt,
-            verbose=True
-        )
     
+    def analyze_multiple_dishes_by_images(self, image_paths: List[str]) -> List[Dict]:
+        """通过多张图像批量分析菜品信息"""
+        results = []
+        
+        try:
+            # 准备图像数据
+            image_contents = []
+            for image_path in image_paths:
+                with open(image_path, "rb") as image_file:
+                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+                    image_contents.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    })
+            
+            # 构建提示词
+            prompt = """
+            请分析这些图片中的菜品，每张图片可能包含多个菜品。
+            对于每张图片，请提供以下信息：
+            1. 菜品名称
+            2. 主要食材列表
+            3. 营养信息（热量、蛋白质、碳水化合物、脂肪、纤维、糖分、钠含量）
+            4. 辣度（0-5级）
+            5. 菜品类别（如：主食、肉类、蔬菜、汤品等）
+            6. 标签（如：健康、家常、油腻等）
+            
+            请以JSON格式返回结果，格式如下：
+            [
+              {
+                "name": "菜品名称",
+                "ingredients": ["食材1", "食材2", ...],
+                "nutrition_info": {
+                  "calories": 0,
+                  "protein": 0,
+                  "carbohydrates": 0,
+                  "fat": 0,
+                  "fiber": 0,
+                  "sugar": 0,
+                  "sodium": 0
+                },
+                "spiciness": 0,
+                "category": "菜品类别",
+                "tags": ["标签1", "标签2"]
+              },
+              ...
+            ]
+            不要包含其他文本，只返回JSON数组。
+            """
+            
+            # 添加文本提示到第一个位置
+            content_list = [{"type": "text", "text": prompt}] + image_contents
+            
+            # 调用ZhipuAI的glm-4.5v模型进行批量图像分析
+            response = self.zhipu_client.chat.completions.create(
+                model="glm-4.5v",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": content_list
+                    }
+                ]
+            )
+            
+            # 解析返回的JSON结果
+            import json
+            result = json.loads(response.choices[0].message.content)
+            
+            # 验证返回的数据结构
+            if isinstance(result, list):
+                for item in result:
+                    required_fields = ["name", "ingredients", "nutrition_info", "spiciness", "category", "tags"]
+                    for field in required_fields:
+                        if field not in item:
+                            raise ValueError(f"Missing required field: {field}")
+                    
+                    # 确保nutrition_info包含所有必需的子字段
+                    required_nutrition_fields = ["calories", "protein", "carbohydrates", "fat", "fiber", "sugar", "sodium"]
+                    for field in required_nutrition_fields:
+                        if field not in item["nutrition_info"]:
+                            item["nutrition_info"][field] = 0  # 设置默认值
+                
+                results = result
+            else:
+                raise ValueError("Expected a list of dishes")
+                
+        except Exception as e:
+            print(f"批量图像分析失败: {e}")
+            # 如果AI分析失败，为每张图片返回默认模拟数据
+            for image_path in image_paths:
+                mock_result = self._mock_ai_image_analysis(image_path)
+                results.append(mock_result)
+        
+        return results
+        
     def analyze_dish_by_image(self, image_path: str) -> Dict:
         """通过图像分析菜品信息"""
         try:
-            # 这里应该是调用图像识别API，如Cal AI
-            # 由于实际环境限制，这里返回模拟数据
-            return self._mock_ai_image_analysis(image_path)
+            # 将图像编码为base64
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+            
+            # 调用ZhipuAI的glm-4.5v模型进行图像分析
+            response = self.zhipu_client.chat.completions.create(
+                model="glm-4.5v",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "请分析这张图片中的菜品，提供以下信息：\n1. 菜品名称\n2. 主要食材列表\n3. 营养信息（热量、蛋白质、碳水化合物、脂肪、纤维、糖分、钠含量）\n4. 辣度（0-5级）\n5. 菜品类别（如：主食、肉类、蔬菜、汤品等）\n6. 标签（如：健康、家常、油腻等）\n\n请以JSON格式返回结果，不要包含其他文本。"
+                            }
+                        ]
+                    }
+                ]
+            )
+            
+            # 解析返回的JSON结果
+            import json
+            result = json.loads(response.choices[0].message.content)
+            
+            # 确保返回的数据结构完整
+            required_fields = ["name", "ingredients", "nutrition_info", "spiciness", "category", "tags"]
+            for field in required_fields:
+                if field not in result:
+                    raise ValueError(f"Missing required field: {field}")
+            
+            # 确保nutrition_info包含所有必需的子字段
+            required_nutrition_fields = ["calories", "protein", "carbohydrates", "fat", "fiber", "sugar", "sodium"]
+            for field in required_nutrition_fields:
+                if field not in result["nutrition_info"]:
+                    result["nutrition_info"][field] = 0  # 设置默认值
+            
+            return result
         except Exception as e:
             print(f"图像分析失败: {e}")
             # 如果AI分析失败，返回默认模拟数据
@@ -211,25 +321,34 @@ class DishService:
     def analyze_dish_by_text(self, dish_description: str) -> Dict:
         """通过文本描述分析菜品信息"""
         try:
-            # 准备完整的prompt文本
-            prompt_text = self.dish_analysis_prompt.format(dish_description=dish_description)
-            # 直接调用LLM进行分析
-            result = self.llm.predict(prompt_text)
-            # 解析JSON结果
+            # 调用ZhipuAI的glm-4.6模型进行文本分析
+            response = self.zhipu_client.chat.completions.create(
+                model="glm-4.6",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"请根据以下描述分析菜品信息：{dish_description}\n\n请提供以下信息：\n1. 菜品名称\n2. 主要食材列表\n3. 营养信息（热量、蛋白质、碳水化合物、脂肪、纤维、糖分、钠含量）\n4. 辣度（0-5级）\n5. 菜品类别（如：主食、肉类、蔬菜、汤品等）\n6. 标签（如：健康、家常、油腻等）\n\n请以JSON格式返回结果，不要包含其他文本。"
+                    }
+                ]
+            )
+            
+            # 解析返回的JSON结果
             import json
-            return json.loads(result)
+            result = json.loads(response.choices[0].message.content)
+            
+            # 确保返回的数据结构完整
+            required_fields = ["name", "ingredients", "nutrition_info", "spiciness", "category", "tags"]
+            for field in required_fields:
+                if field not in result:
+                    raise ValueError(f"Missing required field: {field}")
+            
+            # 确保nutrition_info包含所有必需的子字段
+            required_nutrition_fields = ["calories", "protein", "carbohydrates", "fat", "fiber", "sugar", "sodium"]
+            for field in required_nutrition_fields:
+                if field not in result["nutrition_info"]:
+                    result["nutrition_info"][field] = 0  # 设置默认值
+            
+            return result
         except Exception as e:
             print(f"文本分析失败: {e}")
-            # 返回默认模拟数据
-            return {
-                "ingredients": ["未知食材"],
-                "calories": 200,
-                "protein": 10,
-                "carbohydrates": 15,
-                "fat": 8,
-                "fiber": 2,
-                "sugar": 3,
-                "spiciness": 0,
-                "category": "其他",
-                "tags": []
-            }
+            return {"error": str(e)}
