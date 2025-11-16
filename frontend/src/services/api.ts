@@ -24,7 +24,7 @@ const transformDishToBackend = (dish: Partial<Dish>): any => {
 };
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: 'http://localhost:5000',
   timeout: 30000,
 });
 
@@ -161,4 +161,18 @@ export const userAPI = {
     apiClient.put('/api/users/profile', userData),
   changePassword: (passwords: { oldPassword: string; newPassword: string }) => 
     apiClient.put('/api/users/password', passwords)
+};
+
+// Voice API
+export const voiceAPI = {
+  recognizeSpeech: (audioBlob: Blob) => {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.wav');
+    return apiClient.post<{ success: boolean; text?: string; error?: string }>('/api/voice/recognize', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
+  healthCheck: () => 
+    apiClient.get<{ status: string; service: string }>('/api/voice/health')
 };

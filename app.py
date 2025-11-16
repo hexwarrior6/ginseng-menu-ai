@@ -27,11 +27,12 @@ from database import db, init_db
 init_db(app)
 
 # 导入API路由
-from routes import dish_routes, recommendation_routes
+from routes import dish_routes, recommendation_routes, voice_routes
 
 # 注册蓝图
 app.register_blueprint(dish_routes.bp)
 app.register_blueprint(recommendation_routes.bp)
+app.register_blueprint(voice_routes.bp)
 
 # 配置Swagger UI
 SWAGGER_URL = '/api/docs'  # Swagger UI的URL

@@ -1,6 +1,43 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useVoiceRecognition } from '../hooks/useVoiceRecognition';
+import { voiceAPI } from '../services/api';
+import VoiceTestComponent from '../components/VoiceTestComponent';
 
 const HomePage = () => {
+  const [isVoiceServiceAvailable, setIsVoiceServiceAvailable] = useState(false);
+  const {
+    isRecording,
+    transcript,
+    error,
+    startRecording,
+    stopRecording,
+    clearTranscript
+  } = useVoiceRecognition();
+
+  // 检查语音服务是否可用
+  useEffect(() => {
+    const checkVoiceService = async () => {
+      try {
+        const response = await voiceAPI.healthCheck();
+        setIsVoiceServiceAvailable(response.data.status === 'healthy');
+      } catch (err) {
+        setIsVoiceServiceAvailable(false);
+      }
+    };
+
+    checkVoiceService();
+  }, []);
+
+  const handleVoiceInput = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      clearTranscript();
+      startRecording();
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <section className="text-center py-12">
@@ -24,6 +61,65 @@ const HomePage = () => {
             View Menu
           </Link>
         </div>
+        
+        {/* 语音输入功能 */}
+        {isVoiceServiceAvailable && (
+          <div className="mt-12 max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">语音点餐</h2>
+              <p className="text-gray-600 mb-6">
+                点击下方按钮开始语音输入，告诉我们您想吃什么
+              </p>
+              
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={handleVoiceInput}
+                  className={`flex items-center justify-center w-16 h-16 rounded-full mb-4 transition-all duration-300 ${
+                    isRecording 
+                      ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                      : 'bg-green-500 hover:bg-green-600'
+                  }`}
+                >
+                  {isRecording ? (
+                    <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1h-1V3a1 1 0 00-1-1H6zm6 6a1 1 0 10-2 0v4a1 1 0 102 0V8zm-3 5a1 1 0 10-2 0v2a1 1 0 102 0v-2zm6-4a1 1 0 10-2 0v4a1 1 0 102 0V11z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                
+                <p className="text-gray-600 mb-4">
+                  {isRecording ? '正在聆听...' : '点击开始语音输入'}
+                </p>
+                
+                {transcript && (
+                  <div className="w-full mt-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-gray-800">
+                        <span className="font-semibold">识别结果：</span>
+                        {transcript}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {error && (
+                  <div className="w-full mt-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-700">
+                        <span className="font-semibold">错误：</span>
+                        {error}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="py-12">
@@ -56,6 +152,13 @@ const HomePage = () => {
               Receive customized menu recommendations tailored to your unique requirements
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Voice Test Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <VoiceTestComponent />
         </div>
       </section>
 
