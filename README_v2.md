@@ -6,7 +6,7 @@ Menu.ai是一个智能菜单推荐系统的后端服务，使用Python和LangCha
 
 1. **菜品录入模块**
    - 通过摄像头拍摄食堂菜品，上传至后端
-   - 调用AI大模型接口（如OpenAI、Cal AI）分析菜品成分、热量、辣度等营养信息
+   - 调用AI大模型接口（如OpenAI）分析菜品成分、热量、辣度等营养信息
    - 将菜品信息保存到数据库
 
 2. **推荐模块**
@@ -101,9 +101,6 @@ menu-ai/
 ```
 # OpenAI API Key（必需）
 OPENAI_API_KEY=
-
-# Cal AI API Key（可选）
-CAL_API_KEY=
 
 # 数据库配置
 DATABASE_URL=mongodb://localhost:27017/menu_ai
