@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useVoiceRecognition } from '../hooks/useVoiceRecognition';
 
 const VoiceTestComponent: React.FC = () => {
