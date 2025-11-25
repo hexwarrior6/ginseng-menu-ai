@@ -1,0 +1,3 @@
+# 超声波传感器
+ultrasonic:
+  wake_distance_cm: 15   # 小于 15cm 触发唤醒

@@ -1,0 +1,5 @@
+# Flask配置
+flask:
+  app: app.py
+  env: development
+  run_port: 5000
