@@ -1,3 +1,6 @@
+local_model:
+  path: "../../local_models"
+
 vision_model:
   provider: "zhipu"
   model_name: "GLM-4.5V"

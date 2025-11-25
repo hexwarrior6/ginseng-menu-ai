@@ -1,3 +1,7 @@
+app:
+  name: ginseng_menu_ai
+  mode: development
+
 # Flask配置
 flask:
   app: app.py
