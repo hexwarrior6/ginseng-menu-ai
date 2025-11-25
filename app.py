@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
+from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 import os
 
@@ -10,6 +11,9 @@ load_dotenv()
 # 创建Flask应用
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求
+
+# 初始化SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # 配置应用
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -57,5 +61,9 @@ def home():
 def health_check():
     return jsonify({"status": "healthy", "message": "Menu AI API is running"}), 200
 
+# 导入WebSocket事件处理
+from routes.voice_routes import register_socketio_events
+register_socketio_events(socketio)
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv('FLASK_RUN_PORT', 5000)), debug=True)
+    socketio.run(app, host='0.0.0.0', port=int(os.getenv('FLASK_RUN_PORT', 5000)), debug=True)

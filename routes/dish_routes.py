@@ -11,6 +11,7 @@ bp = Blueprint('dish', __name__, url_prefix='/api/dishes')
 # 初始化菜品服务
 dish_service = DishService()
 
+@bp.route('', methods=['POST'])
 @bp.route('/', methods=['POST'])
 def add_dish():
     """
@@ -113,6 +114,7 @@ def add_dish():
         print(f"添加菜品异常: {e}")
         return jsonify({"error": f"添加菜品异常: {str(e)}"}), 500
 
+@bp.route('', methods=['GET'])
 @bp.route('/', methods=['GET'])
 def get_all_dishes():
     """
