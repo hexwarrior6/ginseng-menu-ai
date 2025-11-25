@@ -1,37 +1,264 @@
-# ginseng-menu-ai
+# ginseng_menu_ai
 
-#### 介绍
-A Python-based IoT & AI system that delivers personalized, diet-aware menu recommendations in real time — making dining safer, smarter, and more inclusive.
+智能食堂多模态菜品推荐系统（Raspberry Pi + AI）
 
-#### 软件架构
-软件架构说明
+## 简介
 
+**ginseng_menu_ai** 是一个基于 **树莓派** 的智能食堂助手系统，通过语音输入、图像识别、触控操作和 RFID 用户识别等多模态能力，为用户提供个性化菜品推荐与菜品信息查询。
 
-#### 安装教程
+系统结合 **GLM-4.5V 多模态模型** 和 **DeepSeek-V3.2 文本模型**，自动学习用户偏好并持续优化推荐效果。同时配合 MongoDB 存储菜品数据与用户偏好数据。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+项目未来会扩展至一个 **Web 端平台（Vue3 + Nest.js）**，让食堂管理员管理菜品、查看数据分析，用户也可以在线查看今日菜品与个性化推荐。
 
-#### 使用说明
+---
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## 功能特性
 
-#### 参与贡献
+### 🔊 语音识别
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+通过 USB 麦克风采集用户语音输入，支持自然语言问答，例如：
 
+* “今天有什么低脂的菜？”
+* “帮我看看我餐盘里是什么？”
 
-#### 特技
+### 🎥 菜品识别（OpenMV H7 PLUS）
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+通过摄像头拍摄餐盘，调用多模态模型识别菜品，并返回：
+
+* 菜品名称
+* 分类（荤/素/清淡等）
+* 热量估计
+* 推荐搭配建议
+
+### 🖥️ 触控显示（TJC8048X543_011C）
+
+显示各类信息：
+
+* 菜品分析
+* 推荐组合
+* 用户偏好
+* 今日菜单
+  支持基本触控操作。
+
+### 📶 超声波感应
+
+用于用户靠近检测：
+
+* 靠近 → 自动唤醒
+* 离开 → 进入待机
+
+### 📡 RFID 用户识别
+
+使用饭卡读取用户 ID，支持：
+
+* 用户模式（加载偏好）
+* 访客模式（匿名推荐）
+
+### 🧠 大模型驱动的推荐
+
+* 视觉识别 → GLM-4.5V
+* 文本问答 → DeepSeek-V3.2
+* 返回结构化用户偏好 → 存入数据库
+  每次调用都会使用用户历史偏好增强推荐。
+
+### 🗄️ 数据库（MongoDB）
+
+保存：
+
+* 今日菜品
+* 用户偏好
+* 交互日志
+* 视觉识别结果
+* Web 平台数据
+
+---
+
+## 系统架构
+
+```
+┌──────────────────────────┐
+│         用户交互层         │
+│ 语音输入 / 摄像头 / 触控显示 │
+└───────────────┬──────────┘
+                ↓
+┌───────────────────────────┐
+│       树莓派运行核心逻辑     │
+│ - 传感器管理                │
+│ - 语音识别处理              │
+│ - 调用视觉模型 & 文本模型    │
+│ - 推荐逻辑                 │
+│ - 数据存储                 │
+└───────────────┬───────────┘
+                ↓
+┌─────────────────────────┐
+│         AI 模型服务层     │
+│ GLM-4.5V（视觉）         │
+│ DeepSeek-V3.2（文本）    │
+└───────────────┬─────────┘
+                ↓
+┌───────────────────────────┐
+│          MongoDB 数据库    │
+│ 用户 / 菜品 / 偏好 / 日志等  │
+└───────────────────────────┘
+```
+
+---
+
+## 项目目录（建议）
+
+```
+ginseng_menu_ai/
+├── src/
+│   ├── hardware/         # 各类传感器与硬件驱动
+│   │   ├── mic.py
+│   │   ├── rfid.py
+│   │   ├── ultrasonic.py
+│   │   ├── display.py
+│   │   └── camera.py
+│   ├── ai/
+│   │   ├── vision_glm.py
+│   │   └── text_deepseek.py
+│   ├── db/
+│   │   ├── models.py
+│   │   └── mongo_client.py
+│   ├── core/
+│   │   ├── recommender.py
+│   │   ├── preferences.py
+│   │   ├── menu_loader.py
+│   │   └── pipeline.py
+│   ├── web_api/          # 给 Web 端使用的 API（预留）
+│   └── main.py           # 主程序入口
+├── docs/
+├── README.md
+└── requirements.txt
+```
+
+---
+
+## 安装与运行
+
+### 1. 克隆项目
+
+```
+git clone https://github.com/xxx/ginseng_menu_ai.git
+cd ginseng_menu_ai
+```
+
+### 2. 安装依赖
+
+```
+pip install -r requirements.txt
+```
+
+### 3. 配置环境变量
+
+* 智谱 API Key
+* DeepSeek API Key
+* MongoDB 地址
+
+### 4. 运行主程序
+
+```
+python src/main.py
+```
+
+---
+
+## Web 平台（扩展模块）
+
+未来将开发一个可部署在 Vercel 的 Web 管理端：
+
+### 管理端功能
+
+* 菜品新增 / 修改 / 删除
+* 上传菜品图片
+* 查看用户偏好统计
+* 查看今日推荐热度趋势
+* 菜品库存与销量管理（可选）
+
+### 用户端功能
+
+* 今日菜单查看
+* 个性化推荐
+* 搭配建议
+* 历史偏好展示（可选）
+
+技术栈：
+
+* **Frontend：Vue3 + Vite**
+* **Backend：Nest.js（Serverless 方案）**
+* **Deploy：Vercel**
+* 与树莓派共用 MongoDB
+
+---
+
+# ROADMAP
+
+## 📌 Phase 1：核心系统搭建（树莓派）
+
+### 1. 基础硬件驱动
+
+* [ ] RFID 读取
+* [ ] 超声波距离检测
+* [x] 麦克风语音采集
+* [ ] 摄像头接入（OpenMV）
+* [ ] 显示屏基础 UI
+
+### 2. 多模态处理
+
+* [ ] 接入 GLM-4.5V 视觉 API
+* [ ] 接入 DeepSeek-V3.2 文本 API
+* [ ] 构建菜品识别流程
+* [ ] 构建自然语言问答流程
+
+### 3. 个性化推荐
+
+* [ ] 用户偏好数据结构设计
+* [ ] 用户偏好更新逻辑
+* [ ] 推荐结果融合（视觉 + 文本）
+
+### 4. 数据库
+
+* [ ] 菜品 Schema
+* [ ] 用户 Schema
+* [ ] 偏好 Schema
+* [ ] MongoDB 同步机制
+
+---
+
+## 📌 Phase 2：体验优化
+
+* [ ] 提醒音与 UI 动画
+* [ ] 触控界面交互优化
+* [ ] 摄像头动态曝光优化
+* [ ] 推荐解释（如：“因为你喜欢清淡…”）
+
+---
+
+## 📌 Phase 3：Web 管理平台（扩展）
+
+### 后端（Nest.js）
+
+* [ ] 菜品 CRUD 接口
+* [ ] 用户偏好查询 API
+* [ ] 今日菜单管理
+* [ ] 数据统计 API
+
+### 前端（Vue3）
+
+* [ ] 菜品管理后台
+* [ ] 统计图表（ECharts 或 Chart.js）
+* [ ] 今日菜单展示页面
+* [ ] 用户偏好分析面板
+* [ ] 用户端菜品浏览与推荐页面
+
+---
+
+## 📌 Phase 4：高级功能（可选）
+
+* [ ] 菜品热量与营养全自动分析
+* [ ] 与步数/健康 App 的数据联动
+* [ ] 用户口味季节趋势分析
+* [ ] 自动生成今日菜品海报（AI）
+* [ ] 小程序 / App 扩展
+* [ ] 食堂数据可视化看板
