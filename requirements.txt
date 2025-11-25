@@ -5,6 +5,7 @@ idna==3.11
 PyAudio==0.2.14
 pycparser==2.23
 requests==2.32.5
+RPi.GPIO==0.7.1
 srt==3.5.3
 tqdm==4.67.1
 urllib3==2.5.0

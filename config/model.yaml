@@ -1,0 +1,16 @@
+vision_model:
+  provider: "zhipu"
+  model_name: "GLM-4.5V"
+  temperature: 0.2
+  max_tokens: 2048
+
+text_model:
+  provider: "deepseek"
+  model_name: "DeepSeek-V3.2"
+  temperature: 0.7
+  max_tokens: 2048
+
+preference_system:
+  enable_personalization: true
+  preference_weight: 0.8       # 偏好对推荐结果影响比例
+  update_rate: 0.2             # 每轮对偏好的更新幅度
