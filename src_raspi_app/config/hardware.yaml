@@ -1,3 +1,5 @@
 # 超声波传感器
 ultrasonic:
   wake_distance_cm: 15   # 小于 15cm 触发唤醒
+  wake_trigger_duration: 1.0   # 检测到距离内持续1秒后触发
+  sleep_trigger_duration: 5.0  # 超出距离后持续5秒后关闭
