@@ -30,10 +30,10 @@ def test_proximity_detection():
     detector = ProximityDetector()
     
     try:
-        print("Measuring distance for 10 seconds. Move your hand closer than 15cm...")
+        print("Measuring distance for 100 seconds. Move your hand closer than 15cm...")
         start_time = time.time()
         
-        while time.time() - start_time < 10:
+        while time.time() - start_time < 100:
             is_close = detector.is_within_distance()
             current_distance = detector.get_current_distance()
             print(f"Distance: {current_distance:.2f} cm, Within range (1s/5s logic): {is_close}")

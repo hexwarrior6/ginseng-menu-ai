@@ -57,49 +57,54 @@ class ProximityDetector:
     def is_within_distance(self, distance_threshold_cm: float = None) -> bool:
         """
         Check if the distance is within the specified threshold for the required duration.
-        
+
         Args:
             distance_threshold_cm: Distance threshold in cm (uses config default if None)
-            
+
         Returns:
-            True if distance is below threshold for specified duration, False otherwise
+            True if distance is below threshold for specified duration (person approached),
+            False if distance is above threshold for specified duration (person left)
         """
         if distance_threshold_cm is None:
             distance_threshold_cm = self.wake_distance_cm
-            
+
         current_distance = self.sensor.measure_distance()
-        
+
         with self._state_lock:
             current_time = time.time()
-            
+
             if current_distance <= distance_threshold_cm:
                 # Object is close
                 if not self._detection_state:
                     # Just detected, record the time
                     self._last_detection_time = current_time
                     self._detection_state = True
+                    # Check if we've been close for the required duration
                     return False  # Not triggered yet
                 else:
                     # Already in detection state, check if duration has passed
                     elapsed_time = current_time - self._last_detection_time
                     if elapsed_time >= self.wake_trigger_duration:
-                        return True  # Triggered
+                        return True  # Has been close for required duration (person approached)
                     else:
-                        return False  # Still measuring
+                        return False  # Still measuring for approach
             else:
                 # Object is far
                 if self._detection_state:
-                    # Was detected before, start measuring for sleep trigger
+                    # Was close before, start measuring for sleep trigger
                     self._last_detection_time = current_time
+                    # Still returning True until timeout is reached
+                    elapsed_time = current_time - self._last_detection_time
+                    # Just set detection state to False to track that we're now in far state
                     self._detection_state = False
-                    return True  # Still triggering sleep until timeout
+                    return True  # Still in the process of checking for departure
                 else:
-                    # Not in detection state, check if duration has passed for timeout
+                    # In far state, check if duration has passed for timeout
                     elapsed_time = current_time - self._last_detection_time
                     if elapsed_time >= self.sleep_trigger_duration:
-                        return False  # Timeout reached, no longer triggering
+                        return False  # Timeout reached, confirmed person left
                     else:
-                        return True  # Still counting down to timeout
+                        return True  # Still counting down to departure confirmation
 
     def continuously_monitor(self, callback_func=None):
         """
