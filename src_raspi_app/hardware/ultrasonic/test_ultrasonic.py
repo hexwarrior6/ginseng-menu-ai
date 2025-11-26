@@ -4,15 +4,9 @@ Test script for ultrasonic sensor functionality
 """
 
 import time
-import sys
-import os
 
-# Add the src_raspi_app directory to the path so we can import our modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-
-from src_raspi_app.hardware.ultrasonic.sensor import UltrasonicDistanceSensor
-from src_raspi_app.hardware.ultrasonic.proximity import ProximityDetector, is_proximity_detected
-
+from hardware.ultrasonic.sensor import UltrasonicDistanceSensor
+from hardware.ultrasonic.proximity import ProximityDetector, is_proximity_detected
 
 def test_basic_sensor():
     """Test basic distance measurement functionality."""
