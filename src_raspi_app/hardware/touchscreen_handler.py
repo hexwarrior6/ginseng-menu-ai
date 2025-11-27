@@ -57,6 +57,9 @@ class TouchscreenCommandHandler:
         self.stop_recording_event = Event()
         self.recognized_text = ""
 
+        # 用户相关属性
+        self.current_user_uid = None
+
         # 命令处理映射表 - 更新为新的命令映射
         self.command_handlers = {
             TouchscreenCommand.VISITOR_MODE.value: self._handle_visitor_mode,
@@ -151,6 +154,8 @@ class TouchscreenCommandHandler:
     def _handle_visitor_mode(self):
         """处理访客模式登录命令"""
         print("👤 收到访客模式登录命令")
+        # 重置当前用户uid以启用访客模式
+        self.current_user_uid = None
         # 这里可以添加访客模式登录的具体逻辑
         # 例如：显示访客登录页面或执行访客认证流程
         self.display.send_nextion_cmd("page visitor_login")
@@ -193,10 +198,13 @@ class TouchscreenCommandHandler:
 
         print(f"📝 最终识别结果: {self.recognized_text}")
 
+        # 获取当前显示的uid（如果有的话）
+        current_uid = self._get_current_uid()
+
         # 如果识别到文本，则将其传递给大模型处理
         if self.recognized_text.strip():
             print("🤖 将语音识别结果交给大模型处理...")
-            llm_result = process_speech_to_llm(self.recognized_text)
+            llm_result = process_speech_to_llm(self.recognized_text, current_uid)
             if llm_result:
                 print(f"🤖 大模型处理结果: {llm_result}")
                 # 将大模型结果发送到显示屏组件
@@ -207,6 +215,26 @@ class TouchscreenCommandHandler:
                 print("⚠️ 大模型处理失败或返回结果为空")
         else:
             print("⚠️ 语音识别结果为空，跳过大模型处理")
+
+    def _get_current_uid(self) -> str:
+        """从显示屏获取当前uid"""
+        try:
+            # 从显示组件中获取uid
+            # Note: We can't actually read the value from Nextion display directly
+            # This is a limitation of Nextion protocol - it doesn't support reading component values
+            # Instead, we'll maintain the uid in memory since it was set during NFC login
+            # The uid would have been stored during NFC login in self._on_uid_read method
+            # For now, we'll return the last known uid if available, or None
+            # In a real system, you may want to store the current user's uid in an instance variable
+            # when the NFC card is read, for example in self.current_user_uid
+
+            # Since we don't currently store the current uid in an instance variable,
+            # we'll need to add that functionality. For now, we'll implement a temporary
+            # solution by adding an instance variable to hold the current user's uid
+            return getattr(self, 'current_user_uid', None)
+        except Exception as e:
+            print(f"⚠️ 获取当前uid时发生错误: {e}")
+            return None
 
     def _start_recording(self):
         """内部录音函数，在单独线程中运行"""
@@ -271,6 +299,8 @@ class TouchscreenCommandHandler:
         # 发送串口屏指令跳转到voice_reco页面，并设置uid.txt
         self.display.send_nextion_cmd("page voice_reco")
         self.display.send_nextion_cmd(f"uid.txt=\"{uid}\"")
+        # Store the uid in an instance variable for later use
+        self.current_user_uid = uid
         # 停止NFC读卡，直到再次被启用
         self.nfc_reader.stop_reading()
         self.nfc_enabled = False
