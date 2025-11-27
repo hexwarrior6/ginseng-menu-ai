@@ -38,8 +38,10 @@ class NFCReader:
     def stop_reading(self):
         """停止NFC读卡功能"""
         self.is_reading = False
-        if self.reading_thread:
+        if self.reading_thread and self.reading_thread != threading.current_thread():
             self.reading_thread.join(timeout=1)
+        elif self.reading_thread == threading.current_thread():
+            print("⚠️ 无法停止NFC读卡：试图在NFC读取线程内停止自身")
         print("🛑 NFC读卡已停止")
 
     def _reading_loop(self):

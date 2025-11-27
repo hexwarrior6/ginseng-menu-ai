@@ -13,6 +13,9 @@ import json
 from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 from hardware.rfid.rfid_reader import NFCReader
+from services.speech_to_llm import process_speech_to_llm
+# 导入TTS工具
+from utils.tts_util import text_to_speech, VOICE_OPTIONS
 
 
 class TouchscreenCommand(Enum):
@@ -55,6 +58,13 @@ class TouchscreenCommandHandler:
         self.recording_thread = None
         self.stop_recording_event = Event()
         self.recognized_text = ""
+
+        # TTS相关属性
+        self.tts_enabled = True  # 默认启用TTS
+        self.tts_voice = VOICE_OPTIONS["female_us"]  # 默认使用美式英语女声
+
+        # 用户相关属性
+        self.current_user_uid = None
 
         # 命令处理映射表 - 更新为新的命令映射
         self.command_handlers = {
@@ -150,6 +160,8 @@ class TouchscreenCommandHandler:
     def _handle_visitor_mode(self):
         """处理访客模式登录命令"""
         print("👤 收到访客模式登录命令")
+        # 重置当前用户uid以启用访客模式
+        self.current_user_uid = None
         # 这里可以添加访客模式登录的具体逻辑
         # 例如：显示访客登录页面或执行访客认证流程
         self.display.send_nextion_cmd("page visitor_login")
@@ -169,6 +181,7 @@ class TouchscreenCommandHandler:
         # 清空显示屏上的文本区域（如果有的话）
         # 为语音识别文本预留一个文本组件
         self.display.send_nextion_cmd("reco_result.txt=\"\"")  # 清空文本组件reco_result
+        self.display.send_nextion_cmd("reco_result.pco=0")
 
         # 启动录音线程
         self.recording_thread = threading.Thread(target=self._start_recording, daemon=True)
@@ -191,6 +204,89 @@ class TouchscreenCommandHandler:
 
         print(f"📝 最终识别结果: {self.recognized_text}")
 
+        # 获取当前显示的uid（如果有的话）
+        current_uid = self._get_current_uid()
+
+        # 如果识别到文本，则将其传递给大模型处理
+        if self.recognized_text.strip():
+            print("🤖 将语音识别结果交给大模型处理...")
+            llm_result = process_speech_to_llm(self.recognized_text, current_uid)
+            if llm_result:
+                print(f"🤖 大模型处理结果: {llm_result}")
+                # 将大模型结果发送到显示屏组件
+                escaped_result = llm_result.replace('"', '\\"')  # 转义引号
+                self.display.send_nextion_cmd(f'reco_result.txt="{escaped_result}"')
+                self.display.send_nextion_cmd("reco_result.pco=64512")
+                
+                # 新增：使用TTS朗读大模型返回的文本
+                self._speak_llm_result(llm_result)
+            else:
+                print("⚠️ 大模型处理失败或返回结果为空")
+        else:
+            print("⚠️ 语音识别结果为空，跳过大模型处理")
+
+    def _speak_llm_result(self, text: str):
+        """
+        使用TTS朗读大模型返回的文本
+        
+        Args:
+            text: 要朗读的文本
+        """
+        if not self.tts_enabled:
+            print("🔇 TTS功能已禁用，跳过朗读")
+            return
+            
+        if not text or not text.strip():
+            print("⚠️ 要朗读的文本为空")
+            return
+            
+        try:
+            print(f"🔊 开始TTS朗读: {text}")
+            # 在单独的线程中运行TTS，避免阻塞主线程
+            tts_thread = threading.Thread(
+                target=self._run_tts, 
+                args=(text,),
+                daemon=True
+            )
+            tts_thread.start()
+            print("✅ TTS朗读任务已启动")
+            
+        except Exception as e:
+            print(f"❌ TTS朗读失败: {e}")
+
+    def _run_tts(self, text: str):
+        """
+        在单独线程中运行TTS
+        
+        Args:
+            text: 要朗读的文本
+        """
+        try:
+            text_to_speech(text, self.tts_voice)
+            print("✅ TTS朗读完成")
+        except Exception as e:
+            print(f"❌ TTS执行错误: {e}")
+
+    def _get_current_uid(self) -> str:
+        """从显示屏获取当前uid"""
+        try:
+            # 从显示组件中获取uid
+            # Note: We can't actually read the value from Nextion display directly
+            # This is a limitation of Nextion protocol - it doesn't support reading component values
+            # Instead, we'll maintain the uid in memory since it was set during NFC login
+            # The uid would have been stored during NFC login in self._on_uid_read method
+            # For now, we'll return the last known uid if available, or None
+            # In a real system, you may want to store the current user's uid in an instance variable
+            # when the NFC card is read, for example in self.current_user_uid
+
+            # Since we don't currently store the current uid in an instance variable,
+            # we'll need to add that functionality. For now, we'll implement a temporary
+            # solution by adding an instance variable to hold the current user's uid
+            return getattr(self, 'current_user_uid', None)
+        except Exception as e:
+            print(f"⚠️ 获取当前uid时发生错误: {e}")
+            return None
+
     def _start_recording(self):
         """内部录音函数，在单独线程中运行"""
         try:
@@ -201,6 +297,7 @@ class TouchscreenCommandHandler:
                 # 假设串口屏上有名为"partial_text"的文本组件来显示实时文本
                 escaped_text = text.replace('"', '\\"')  # 转义引号
                 self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
+                self.display.send_nextion_cmd("reco_result.pco=0")
 
             def on_final(text):
                 """处理完整识别结果"""
@@ -208,6 +305,7 @@ class TouchscreenCommandHandler:
                 # 将完整结果更新到串口屏
                 escaped_text = text.replace('"', '\\"')  # 转义引号
                 self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
+                self.display.send_nextion_cmd("reco_result.pco=0")
                 # 保存识别结果
                 self.recognized_text = text
 
@@ -252,6 +350,14 @@ class TouchscreenCommandHandler:
         # 发送串口屏指令跳转到voice_reco页面，并设置uid.txt
         self.display.send_nextion_cmd("page voice_reco")
         self.display.send_nextion_cmd(f"uid.txt=\"{uid}\"")
+        # Store the uid in an instance variable for later use
+        self.current_user_uid = uid
+        # 在另一个线程中停止NFC读卡，避免在读卡线程内停止自身
+        stop_thread = threading.Thread(target=self._stop_nfc_safely, daemon=True)
+        stop_thread.start()
+
+    def _stop_nfc_safely(self):
+        """安全停止NFC读卡功能"""
         # 停止NFC读卡，直到再次被启用
         self.nfc_reader.stop_reading()
         self.nfc_enabled = False
@@ -288,6 +394,20 @@ class TouchscreenCommandHandler:
         with self._lock:
             self.command_handlers[command_hex] = handler_func
             print(f"✅ 已注册自定义命令: {command_hex.hex()}")
+
+    def enable_tts(self, enabled: bool = True):
+        """启用或禁用TTS功能"""
+        self.tts_enabled = enabled
+        status = "启用" if enabled else "禁用"
+        print(f"🔊 TTS功能已{status}")
+
+    def set_tts_voice(self, voice_option: str):
+        """设置TTS语音选项"""
+        if voice_option in VOICE_OPTIONS:
+            self.tts_voice = VOICE_OPTIONS[voice_option]
+            print(f"🔊 TTS语音已设置为: {voice_option}")
+        else:
+            print(f"⚠️ 未知的TTS语音选项: {voice_option}")
 
 
 def create_default_command_handler(display: ScreenDriver, on_user_approach_callback: Callable = None):
