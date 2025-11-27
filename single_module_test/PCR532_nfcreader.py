@@ -42,16 +42,18 @@ sudo mkdir -p /etc/nfc
 
 # 创建配置文件
 sudo tee /etc/nfc/libnfc.conf > /dev/null <<'EOF'
-# libnfc configuration file
-allow_intrusive_scan = true
-allow_autoscan = true
+# libnfc configuration for PN532 UART (PCR532 / CH340)
+
+# 禁止自动扫描其他接口，避免 I2C/SPI 冲突
+allow_intrusive_scan = false
+allow_autoscan = false
+
+# 仅使用 UART
+device.name = "pn532_uart_fixed"
+device.connstring = "pn532_uart:/dev/ttyUSB0"
+
+# 日志等级（0~3）
 log_level = 1
-
-# 自动检测设备（推荐先尝试这个）
-# device.connstring = "pn532_uart:/dev/ttyUSB0"
-
-# 如果自动检测不行，取消注释下面一行，并确认你的设备路径
-# device.connstring = "pn532_uart:/dev/ttyUSB0"
 EOF
 ----------------------------------------
 

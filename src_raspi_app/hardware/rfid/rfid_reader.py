@@ -4,6 +4,9 @@ import re
 def read_uid(timeout=5, verbose=False):
     """
     读取 RFID 卡片的 UID
+
+    ！！！注意：
+    确保已按照 single_module_test/PCR532_nfcreader.py 中的步骤配置libnfc。
     
     参数:
         timeout: 超时时间(秒)，默认5秒
