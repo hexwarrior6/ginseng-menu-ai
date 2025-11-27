@@ -136,21 +136,9 @@ class GinsengMenuApp:
         self.display.send_nextion_cmd("page read_card_page")
         print("💳 等待刷卡...")
 
-        # ⏱️ 阻塞等待（30秒超时）
-        uid = read_uid(timeout=30)
-
-        # 🔒 强校验：必须是非空字符串
-        if not uid or not isinstance(uid, str) or len(uid.strip()) == 0:
-            print("❌ 登录失败：未检测到有效卡")
-            self.display.send_nextion_cmd("status.txt=\"登录失败\"")
-            time.sleep(2)
-            return  # ⚠️ 直接退出，不启动语音！
-
-        # ✅ 登录成功
-        self.user_id = uid.strip()
-        print(f"👤 用户登录：{self.user_id}")
-        self.display.send_nextion_cmd("page voice_reco")
-        self.display.send_nextion_cmd(f"uid.txt=\"{self.user_id}\"")
+        # NFC读卡现在由touchscreen_handler管理
+        print("💳 NFC读卡功能已启用，请刷卡...")
+        # 保持此页面直到NFC读取成功（通过串口屏跳转到voice_reco页面）
 
     def clear_display(self):
         """休眠时清屏"""

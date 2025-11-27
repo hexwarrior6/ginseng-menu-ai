@@ -12,6 +12,7 @@ from hardware.display import ScreenDriver
 import json
 from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
+from hardware.rfid.rfid_reader import NFCReader
 
 
 class TouchscreenCommand(Enum):
@@ -44,6 +45,10 @@ class TouchscreenCommandHandler:
         self.is_listening = False
         self.listen_thread = None
         self._lock = threading.Lock()
+
+        # NFC相关属性
+        self.nfc_reader = NFCReader()
+        self.nfc_enabled = False
 
         # 录音相关属性
         self.is_recording = False
@@ -222,16 +227,35 @@ class TouchscreenCommandHandler:
     def _handle_enable_nfc(self):
         """处理启动NFC命令"""
         print("🔛 收到启动NFC命令")
-        # 这里可以添加启动NFC的具体逻辑
-        # 例如：启用NFC读卡器，开始监听NFC卡片
-        # 可以调用相关的NFC模块函数
+        if not self.nfc_enabled:
+            # 启动NFC读卡
+            self.nfc_reader.start_reading(self._on_uid_read, verbose=True)
+            self.nfc_enabled = True
+            print("✅ NFC读卡已启动")
+        else:
+            print("⚠️ NFC读卡已在运行")
 
     def _handle_disable_nfc(self):
         """处理关闭NFC命令"""
         print("🔚 收到关闭NFC命令")
-        # 这里可以添加关闭NFC的具体逻辑
-        # 例如：禁用NFC读卡器，停止监听NFC卡片
-        # 可以调用相关的NFC模块函数
+        if self.nfc_enabled:
+            # 停止NFC读卡
+            self.nfc_reader.stop_reading()
+            self.nfc_enabled = False
+            print("✅ NFC读卡已停止")
+        else:
+            print("⚠️ NFC读卡当前未运行")
+
+    def _on_uid_read(self, uid: str):
+        """NFC读取到UID的回调函数"""
+        print(f"👤 用户登录：{uid}")
+        # 发送串口屏指令跳转到voice_reco页面，并设置uid.txt
+        self.display.send_nextion_cmd("page voice_reco")
+        self.display.send_nextion_cmd(f"uid.txt=\"{uid}\"")
+        # 停止NFC读卡，直到再次被启用
+        self.nfc_reader.stop_reading()
+        self.nfc_enabled = False
+        print("✅ NFC读卡已自动停止，等待手动重启")
 
     def _handle_back_command(self):
         """处理返回命令"""
