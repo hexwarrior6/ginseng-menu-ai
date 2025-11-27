@@ -4,7 +4,7 @@ from threading import Thread, Lock
 from typing import Callable, Optional
 
 class ScreenDriver:
-    """串口通信助手类（推荐方案）"""
+    """串口通信助手（按自定义协议 55 XX 0D0A 解析）"""
     
     def __init__(self, port: str, baudrate: int = 115200, timeout: float = 0.1):
         self.port = port
@@ -13,11 +13,10 @@ class ScreenDriver:
         self.serial_port: Optional[serial.Serial] = None
         self.is_listening = False
         self.listen_thread: Optional[Thread] = None
-        self.lock = Lock()  # 线程锁，保护串口读写
+        self.lock = Lock()
         self.receive_callback: Optional[Callable] = None
         
     def open(self) -> bool:
-        """打开串口"""
         try:
             self.serial_port = serial.Serial(
                 port=self.port,
@@ -32,28 +31,20 @@ class ScreenDriver:
             return False
     
     def close(self):
-        """关闭串口"""
-        self.stop_listen()  # 先停止监听
+        self.stop_listen()
         if self.serial_port and self.serial_port.is_open:
             self.serial_port.close()
             print("🔌 串口已关闭")
     
     def send(self, data: bytes) -> bool:
-        """
-        发送数据
-        Args:
-            data: 要发送的字节数据
-        Returns:
-            bool: 发送是否成功
-        """
         if not self.serial_port or not self.serial_port.is_open:
             print("⚠️  串口未打开，无法发送")
             return False
 
         try:
-            with self.lock:  # 加锁保护
+            with self.lock:
                 bytes_written = self.serial_port.write(data)
-                self.serial_port.flush()  # 确保数据发送完成
+                self.serial_port.flush()
             print(f"📤 发送 {bytes_written} 字节: {data}")
             return True
         except Exception as e:
@@ -61,20 +52,10 @@ class ScreenDriver:
             return False
     
     def send_nextion_cmd(self, cmd: str) -> bool:
-        """
-        发送Nextion串口屏指令（自动添加结束符FF FF FF）
-        Args:
-            cmd: 指令字符串，如 "gold.val=10"
-        """
         data = cmd.encode() + bytes.fromhex('ff ff ff')
         return self.send(data)
     
     def start_listen(self, callback: Callable[[bytes], None]):
-        """
-        启动后台监听线程（推荐方式）
-        Args:
-            callback: 接收到数据时的回调函数，参数为接收到的字节数据
-        """
         if self.is_listening:
             print("⚠️  监听线程已在运行")
             return
@@ -88,14 +69,19 @@ class ScreenDriver:
         self.listen_thread = Thread(target=self._listen_loop, daemon=True)
         self.listen_thread.start()
         print("📻 串口监听已启动")
-    
+
     def _listen_loop(self):
-        """监听循环（内部方法）"""
+        """
+        解析协议：
+        帧头：0x55
+        指令：1 字节
+        尾部：0x0D 0x0A
+        完整帧格式：55 XX 0D 0A
+        """
         buffer = b''
         while self.is_listening:
             try:
                 with self.lock:
-                    # 检查串口是否有数据可读
                     if self.serial_port.in_waiting > 0:
                         data = self.serial_port.read(self.serial_port.in_waiting)
                     else:
@@ -103,30 +89,43 @@ class ScreenDriver:
 
                 if data:
                     buffer += data
-                    print(f"📥 收到数据: {data.hex()}")
+                    print(f"📥 收到原始数据: {data.hex()}")
 
-                    # 尝试处理完整的指令（根据结束符 ff ff ff 分割）
-                    while b'\xff\xff\xff' in buffer:
-                        # 找到一个完整的指令
-                        parts = buffer.split(b'\xff\xff\xff', 1)
-                        complete_cmd = parts[0]
+                    # 解析多帧和粘包
+                    while True:
+                        start = buffer.find(b'\x55')
+                        if start == -1:
+                            buffer = b''  # 没头就清空
+                            break
 
-                        if self.receive_callback:
-                            self.receive_callback(complete_cmd)
+                        # 至少要 4 字节：55 XX 0D 0A
+                        if len(buffer) < start + 4:
+                            # 等更多字节
+                            buffer = buffer[start:]
+                            break
 
-                        # 保留剩余数据
-                        buffer = parts[1] if len(parts) > 1 else b''
+                        frame = buffer[start:start+4]
 
-                    # 处理没有结束符的数据或粘包
-                    # 如果buffer太长，可能需要其他策略
+                        # 判断是否是完整帧
+                        if frame[0] == 0x55 and frame[2] == 0x0D and frame[3] == 0x0A:
+                            cmd = bytes([frame[1]])  # 只取指令码
+                            print(f"📌 解析指令码: {cmd.hex()}")
+
+                            if self.receive_callback:
+                                self.receive_callback(cmd)
+
+                            buffer = buffer[start+4:]  # 移除已处理帧
+                        else:
+                            # 不是完整帧，丢弃当前头，从下一个字节继续找
+                            buffer = buffer[start+1:]
+                            continue
 
             except Exception as e:
-                print(f"⚠️  监听异常：{e}")
+                print(f"⚠️ 监听异常：{e}")
 
-            time.sleep(0.05)  # 降低CPU占用，50ms轮询
-    
+            time.sleep(0.02)
+
     def stop_listen(self):
-        """停止监听"""
         if self.is_listening:
             self.is_listening = False
             if self.listen_thread:
@@ -134,14 +133,6 @@ class ScreenDriver:
             print("🛑 串口监听已停止")
     
     def receive_once(self, size: int = 1024, timeout: float = 1.0) -> Optional[bytes]:
-        """
-        单次接收数据（阻塞方式）
-        Args:
-            size: 读取字节数
-            timeout: 超时时间（秒）
-        Returns:
-            接收到的数据，超时返回None
-        """
         if not self.serial_port or not self.serial_port.is_open:
             print("⚠️  串口未打开")
             return None
@@ -158,63 +149,3 @@ class ScreenDriver:
         except Exception as e:
             print(f"❌ 接收失败：{e}")
             return None
-
-
-# ============ 使用示例 ============
-
-def example_usage():
-    """演示如何使用ScreenDriver"""
-    
-    # 1. 创建串口助手
-    serial = ScreenDriver(port="/dev/ttyUSB1", baudrate=115200)
-    
-    # 2. 打开串口
-    if not serial.open():
-        return
-    
-    # 3. 定义接收回调函数
-    def on_receive(data: bytes):
-        """收到数据时的处理"""
-        print(f"📩 收到数据：{data.hex()} | {data}")
-        
-        # 示例：检测复位指令
-        if b'\x55\x03\x0D\x0A' in data:
-            print("🔴 检测到复位指令！")
-    
-    # 4. 启动后台监听
-    serial.start_listen(callback=on_receive)
-    
-    # 5. 发送数据
-    try:
-        while True:
-            # 发送Nextion指令
-            serial.send_nextion_cmd("gold.val=100")
-            serial.send_nextion_cmd("silver.val=50")
-            
-            # 或直接发送字节
-            serial.send(b'\x55\xAA')
-            
-            time.sleep(1)
-    
-    except KeyboardInterrupt:
-        print("\n退出中...")
-    
-    finally:
-        # 6. 关闭串口（自动停止监听）
-        serial.close()
-
-
-def example_single_receive():
-    """演示单次接收模式（不推荐用于实时监听）"""
-    serial = ScreenDriver(port="/dev/ttyUSB1")
-    
-    if serial.open():
-        # 发送指令
-        serial.send_nextion_cmd("page 0")
-        
-        # 等待接收响应（阻塞1秒）
-        response = serial.receive_once(timeout=1.0)
-        if response:
-            print(f"收到响应：{response}")
-        
-        serial.close()
