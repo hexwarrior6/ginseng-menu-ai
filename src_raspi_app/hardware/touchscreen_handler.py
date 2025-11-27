@@ -352,6 +352,12 @@ class TouchscreenCommandHandler:
         self.display.send_nextion_cmd(f"uid.txt=\"{uid}\"")
         # Store the uid in an instance variable for later use
         self.current_user_uid = uid
+        # 在另一个线程中停止NFC读卡，避免在读卡线程内停止自身
+        stop_thread = threading.Thread(target=self._stop_nfc_safely, daemon=True)
+        stop_thread.start()
+
+    def _stop_nfc_safely(self):
+        """安全停止NFC读卡功能"""
         # 停止NFC读卡，直到再次被启用
         self.nfc_reader.stop_reading()
         self.nfc_enabled = False
