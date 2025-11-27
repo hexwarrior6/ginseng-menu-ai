@@ -14,6 +14,8 @@ from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 from hardware.rfid.rfid_reader import NFCReader
 from services.speech_to_llm import process_speech_to_llm
+# 导入TTS工具
+from utils.tts_util import text_to_speech, VOICE_OPTIONS
 
 
 class TouchscreenCommand(Enum):
@@ -56,6 +58,10 @@ class TouchscreenCommandHandler:
         self.recording_thread = None
         self.stop_recording_event = Event()
         self.recognized_text = ""
+
+        # TTS相关属性
+        self.tts_enabled = True  # 默认启用TTS
+        self.tts_voice = VOICE_OPTIONS["female_us"]  # 默认使用美式英语女声
 
         # 用户相关属性
         self.current_user_uid = None
@@ -211,10 +217,55 @@ class TouchscreenCommandHandler:
                 escaped_result = llm_result.replace('"', '\\"')  # 转义引号
                 self.display.send_nextion_cmd(f'reco_result.txt="{escaped_result}"')
                 self.display.send_nextion_cmd("reco_result.pco=64512")
+                
+                # 新增：使用TTS朗读大模型返回的文本
+                self._speak_llm_result(llm_result)
             else:
                 print("⚠️ 大模型处理失败或返回结果为空")
         else:
             print("⚠️ 语音识别结果为空，跳过大模型处理")
+
+    def _speak_llm_result(self, text: str):
+        """
+        使用TTS朗读大模型返回的文本
+        
+        Args:
+            text: 要朗读的文本
+        """
+        if not self.tts_enabled:
+            print("🔇 TTS功能已禁用，跳过朗读")
+            return
+            
+        if not text or not text.strip():
+            print("⚠️ 要朗读的文本为空")
+            return
+            
+        try:
+            print(f"🔊 开始TTS朗读: {text}")
+            # 在单独的线程中运行TTS，避免阻塞主线程
+            tts_thread = threading.Thread(
+                target=self._run_tts, 
+                args=(text,),
+                daemon=True
+            )
+            tts_thread.start()
+            print("✅ TTS朗读任务已启动")
+            
+        except Exception as e:
+            print(f"❌ TTS朗读失败: {e}")
+
+    def _run_tts(self, text: str):
+        """
+        在单独线程中运行TTS
+        
+        Args:
+            text: 要朗读的文本
+        """
+        try:
+            text_to_speech(text, self.tts_voice)
+            print("✅ TTS朗读完成")
+        except Exception as e:
+            print(f"❌ TTS执行错误: {e}")
 
     def _get_current_uid(self) -> str:
         """从显示屏获取当前uid"""
@@ -337,6 +388,20 @@ class TouchscreenCommandHandler:
         with self._lock:
             self.command_handlers[command_hex] = handler_func
             print(f"✅ 已注册自定义命令: {command_hex.hex()}")
+
+    def enable_tts(self, enabled: bool = True):
+        """启用或禁用TTS功能"""
+        self.tts_enabled = enabled
+        status = "启用" if enabled else "禁用"
+        print(f"🔊 TTS功能已{status}")
+
+    def set_tts_voice(self, voice_option: str):
+        """设置TTS语音选项"""
+        if voice_option in VOICE_OPTIONS:
+            self.tts_voice = VOICE_OPTIONS[voice_option]
+            print(f"🔊 TTS语音已设置为: {voice_option}")
+        else:
+            print(f"⚠️ 未知的TTS语音选项: {voice_option}")
 
 
 def create_default_command_handler(display: ScreenDriver, on_user_approach_callback: Callable = None):
