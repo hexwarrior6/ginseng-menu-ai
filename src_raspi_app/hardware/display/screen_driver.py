@@ -218,38 +218,3 @@ def example_single_receive():
             print(f"收到响应：{response}")
         
         serial.close()
-
-
-# ============ 简化版：纯函数式（不推荐长时间运行）============
-
-def simple_send(port: str, data: bytes, baudrate: int = 115200) -> bool:
-    """
-    简单发送函数（适合偶尔发送，不适合频繁调用）
-    每次都打开/关闭串口，性能较差
-    """
-    try:
-        with serial.Serial(port, baudrate, timeout=1) as ser:
-            ser.write(data)
-            return True
-    except Exception as e:
-        print(f"发送失败：{e}")
-        return False
-
-
-def simple_receive(port: str, size: int = 1024, timeout: float = 1.0, 
-                   baudrate: int = 115200) -> Optional[bytes]:
-    """
-    简单接收函数（适合单次接收，不适合持续监听）
-    """
-    try:
-        with serial.Serial(port, baudrate, timeout=timeout) as ser:
-            return ser.read(size)
-    except Exception as e:
-        print(f"接收失败：{e}")
-        return None
-
-
-if __name__ == '__main__':
-    # 运行示例
-    print("推荐使用 ScreenDriver 类进行持续通信")
-    example_usage()
