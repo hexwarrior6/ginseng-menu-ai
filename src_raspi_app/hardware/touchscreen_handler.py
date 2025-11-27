@@ -9,6 +9,9 @@ from typing import Callable, Dict, Any
 from enum import Enum
 import threading
 from hardware.display import ScreenDriver
+import json
+from threading import Event
+from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 
 
 class TouchscreenCommand(Enum):
@@ -41,6 +44,12 @@ class TouchscreenCommandHandler:
         self.is_listening = False
         self.listen_thread = None
         self._lock = threading.Lock()
+
+        # 录音相关属性
+        self.is_recording = False
+        self.recording_thread = None
+        self.stop_recording_event = Event()
+        self.recognized_text = ""
 
         # 命令处理映射表 - 更新为新的命令映射
         self.command_handlers = {
@@ -143,16 +152,72 @@ class TouchscreenCommandHandler:
     def _handle_start_record(self):
         """处理开始录音命令"""
         print("🎤 收到开始录音命令")
-        # 这里可以添加开始录音的具体逻辑
-        # 例如：启动录音设备，开始录制音频
-        # 可以调用相关的录音模块函数
+        if self.is_recording:
+            print("⚠️  录音已在进行中")
+            return
+
+        # 重置停止事件
+        self.stop_recording_event.clear()
+        self.is_recording = True
+        self.recognized_text = ""
+
+        # 清空显示屏上的文本区域（如果有的话）
+        # 为语音识别文本预留一个文本组件
+        self.display.send_nextion_cmd("reco_result.txt=\"\"")  # 清空文本组件reco_result
+
+        # 启动录音线程
+        self.recording_thread = threading.Thread(target=self._start_recording, daemon=True)
+        self.recording_thread.start()
 
     def _handle_stop_record(self):
         """处理结束录音命令"""
         print("⏹️ 收到结束录音命令")
-        # 这里可以添加结束录音的具体逻辑
-        # 例如：停止录音设备，保存录音文件
-        # 可以调用相关的录音模块函数
+        if not self.is_recording:
+            print("⚠️  没有正在进行的录音")
+            return
+
+        # 设置停止标志
+        self.stop_recording_event.set()
+        self.is_recording = False
+
+        # 等待录音线程结束
+        if self.recording_thread and self.recording_thread.is_alive():
+            self.recording_thread.join(timeout=2)
+
+        print(f"📝 最终识别结果: {self.recognized_text}")
+
+    def _start_recording(self):
+        """内部录音函数，在单独线程中运行"""
+        try:
+            def on_partial(text):
+                """处理部分识别结果（流式）"""
+                print(f"[流式识别] {text}")
+                # 将部分识别结果显示到串口屏上
+                # 假设串口屏上有名为"partial_text"的文本组件来显示实时文本
+                escaped_text = text.replace('"', '\\"')  # 转义引号
+                self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
+
+            def on_final(text):
+                """处理完整识别结果"""
+                print(f"[完整识别] {text}")
+                # 将完整结果更新到串口屏
+                escaped_text = text.replace('"', '\\"')  # 转义引号
+                self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
+                # 保存识别结果
+                self.recognized_text = text
+
+            # 开始持续录音，直到停止标志被设置
+            recognize_speech_continuous_with_stop_flag(
+                stop_flag=self.stop_recording_event,
+                on_partial=on_partial,
+                on_final=on_final
+            )
+
+        except Exception as e:
+            print(f"❌ 录音过程中出现错误: {e}")
+        finally:
+            self.is_recording = False
+            print("🎙️ 录音结束")
 
     def _handle_enable_nfc(self):
         """处理启动NFC命令"""
