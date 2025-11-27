@@ -129,7 +129,7 @@ def recognize_speech(timeout=10, device_index=None, silence_threshold=1.5,
 def recognize_speech_continuous(callback, device_index=None, stop_callback=None):
     """
     持续识别语音并通过回调函数返回结果
-    
+
     参数:
         callback: 回调函数，接收识别到的文本作为参数
         device_index: 音频设备索引
@@ -137,9 +137,9 @@ def recognize_speech_continuous(callback, device_index=None, stop_callback=None)
     """
     recognizer = init_recognizer()
     recognizer.Reset()
-    
+
     p = pyaudio.PyAudio()
-    
+
     try:
         stream = p.open(
             format=pyaudio.paInt16,
@@ -149,17 +149,18 @@ def recognize_speech_continuous(callback, device_index=None, stop_callback=None)
             input_device_index=device_index,
             frames_per_buffer=CHUNK
         )
-        
-        print("🎤 开始持续监听... (按Ctrl+C停止)")
+
+        print("🎤 开始持续监听... (等待停止信号)")
         stream.start_stream()
-        
+
         while True:
             # 检查是否需要停止
             if stop_callback and stop_callback():
+                print("\n⏹️  检测到停止信号，结束录音")
                 break
-            
+
             data = stream.read(CHUNK, exception_on_overflow=False)
-            
+
             if recognizer.AcceptWaveform(data):
                 result = json.loads(recognizer.Result())
                 text = result.get('text', '').strip()
@@ -169,11 +170,75 @@ def recognize_speech_continuous(callback, device_index=None, stop_callback=None)
                 partial = json.loads(recognizer.PartialResult())
                 text = partial.get('partial', '').strip()
                 if text:
-                    print(f"[实时] {text}        ", end='\r')
-        
+                    # 调用部分结果回调，用于流式显示
+                    if callback:
+                        callback(text, is_partial=True)
+
         stream.stop_stream()
         stream.close()
-        
+
+    except KeyboardInterrupt:
+        print("\n\n停止识别")
+    finally:
+        p.terminate()
+
+
+def recognize_speech_continuous_with_stop_flag(stop_flag, on_partial=None, on_final=None, device_index=None):
+    """
+    持续识别语音，通过停止标志控制是否停止
+
+    参数:
+        stop_flag: 停止标志，当标志变为True时停止录音
+        on_partial: 部分结果回调函数
+        on_final: 完整结果回调函数
+        device_index: 音频设备索引
+    """
+    recognizer = init_recognizer()
+    recognizer.Reset()
+
+    p = pyaudio.PyAudio()
+
+    try:
+        stream = p.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=RATE,
+            input=True,
+            input_device_index=device_index,
+            frames_per_buffer=CHUNK
+        )
+
+        print("🎤 开始持续监听... (等待停止信号)")
+        stream.start_stream()
+
+        while True:
+            # 检查是否需要停止
+            if stop_flag.is_set():
+                print("\n⏹️  检测到停止信号，结束录音")
+                break
+
+            data = stream.read(CHUNK, exception_on_overflow=False)
+
+            if recognizer.AcceptWaveform(data):
+                result = json.loads(recognizer.Result())
+                text = result.get('text', '').strip()
+                if text:
+                    print(f"\n✓ 识别到: {text}")
+                    # 调用完整结果回调
+                    if on_final:
+                        on_final(text)
+            else:
+                partial = json.loads(recognizer.PartialResult())
+                text = partial.get('partial', '').strip()
+                if text:
+                    print(f"[实时] {text}        ", end='\r')
+                    # 调用部分结果回调
+                    if on_partial:
+                        on_partial(text)
+
+        stream.stop_stream()
+        stream.close()
+
     except KeyboardInterrupt:
         print("\n\n停止识别")
     finally:
