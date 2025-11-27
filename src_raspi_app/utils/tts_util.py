@@ -13,13 +13,14 @@ import tempfile
 from typing import Optional
 
 
-async def text_to_speech_async(text: str, voice: str = "en-US-AriaNeural") -> bool:
+async def text_to_speech_async(text: str, voice: str = "en-US-AriaNeural", rate: str = "+30%") -> bool:
     """
     Asynchronously convert text to speech using EdgeTTS and play it
     
     Args:
         text (str): Text to convert to speech
         voice (str): Voice model to use, default is "en-US-AriaNeural"
+        rate (str): Speaking rate adjustment, default is "+30%" faster
         
     Returns:
         bool: True if successful, False otherwise
@@ -34,8 +35,8 @@ async def text_to_speech_async(text: str, voice: str = "en-US-AriaNeural") -> bo
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
             temp_filename = tmp_file.name
 
-        # Generate speech using EdgeTTS
-        communicate = Communicate(text, voice)
+        # Generate speech using EdgeTTS with faster rate
+        communicate = Communicate(text, voice, rate=rate)
         await communicate.save(temp_filename)
 
         # Play the audio file
@@ -88,18 +89,19 @@ async def play_audio_async(filename: str) -> bool:
             pass
 
 
-def text_to_speech(text: str, voice: str = "en-US-AriaNeural") -> bool:
+def text_to_speech(text: str, voice: str = "en-US-AriaNeural", rate: str = "+30%") -> bool:
     """
     Synchronous function to convert text to speech using EdgeTTS and play it
     
     Args:
         text (str): Text to convert to speech
         voice (str): Voice model to use, default is "en-US-AriaNeural"
+        rate (str): Speaking rate adjustment, default is "+30%" faster
         
     Returns:
         bool: True if successful, False otherwise
     """
-    return asyncio.run(text_to_speech_async(text, voice))
+    return asyncio.run(text_to_speech_async(text, voice, rate))
 
 
 # Predefined voice options
@@ -117,7 +119,7 @@ if __name__ == "__main__":
     
     logging.basicConfig(level=logging.INFO)
     
-    success = text_to_speech(test_text, VOICE_OPTIONS["female_us"])
+    success = text_to_speech(test_text, VOICE_OPTIONS["female_us"], "+30%")
     if success:
         print("✅ Text to speech test completed successfully")
     else:
