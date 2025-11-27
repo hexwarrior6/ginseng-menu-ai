@@ -1,6 +1,7 @@
 certifi==2025.11.12
 cffi==2.0.0
 charset-normalizer==3.4.4
+edge-tts==7.2.3
 idna==3.11
 PyAudio==0.2.14
 pycparser==2.23
