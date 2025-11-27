@@ -13,6 +13,7 @@ import json
 from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 from hardware.rfid.rfid_reader import NFCReader
+from services.speech_to_llm import process_speech_to_llm
 
 
 class TouchscreenCommand(Enum):
@@ -169,6 +170,7 @@ class TouchscreenCommandHandler:
         # 清空显示屏上的文本区域（如果有的话）
         # 为语音识别文本预留一个文本组件
         self.display.send_nextion_cmd("reco_result.txt=\"\"")  # 清空文本组件reco_result
+        self.display.send_nextion_cmd("reco_result.pco=0")
 
         # 启动录音线程
         self.recording_thread = threading.Thread(target=self._start_recording, daemon=True)
@@ -191,6 +193,21 @@ class TouchscreenCommandHandler:
 
         print(f"📝 最终识别结果: {self.recognized_text}")
 
+        # 如果识别到文本，则将其传递给大模型处理
+        if self.recognized_text.strip():
+            print("🤖 将语音识别结果交给大模型处理...")
+            llm_result = process_speech_to_llm(self.recognized_text)
+            if llm_result:
+                print(f"🤖 大模型处理结果: {llm_result}")
+                # 将大模型结果发送到显示屏组件
+                escaped_result = llm_result.replace('"', '\\"')  # 转义引号
+                self.display.send_nextion_cmd(f'reco_result.txt="{escaped_result}"')
+                self.display.send_nextion_cmd("reco_result.pco=64512")
+            else:
+                print("⚠️ 大模型处理失败或返回结果为空")
+        else:
+            print("⚠️ 语音识别结果为空，跳过大模型处理")
+
     def _start_recording(self):
         """内部录音函数，在单独线程中运行"""
         try:
@@ -201,6 +218,7 @@ class TouchscreenCommandHandler:
                 # 假设串口屏上有名为"partial_text"的文本组件来显示实时文本
                 escaped_text = text.replace('"', '\\"')  # 转义引号
                 self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
+                self.display.send_nextion_cmd("reco_result.pco=0")
 
             def on_final(text):
                 """处理完整识别结果"""
@@ -208,6 +226,7 @@ class TouchscreenCommandHandler:
                 # 将完整结果更新到串口屏
                 escaped_text = text.replace('"', '\\"')  # 转义引号
                 self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
+                self.display.send_nextion_cmd("reco_result.pco=0")
                 # 保存识别结果
                 self.recognized_text = text
 
