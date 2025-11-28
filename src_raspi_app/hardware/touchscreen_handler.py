@@ -13,8 +13,7 @@ import json
 from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 from hardware.rfid.rfid_reader import NFCReader
-from services.speech_to_llm import process_speech_to_llm
-# 导入TTS工具
+from pipeline.dish_suggest import process_speech_to_llm
 from utils.tts_util import text_to_speech, VOICE_OPTIONS
 
 

@@ -19,8 +19,7 @@ from hardware.rfid import read_uid                     # RFID读卡
 from hardware.touchscreen_handler import TouchscreenCommandHandler  # 触摸屏命令处理器
 
 # 服务模块
-from services.dish_analyze import analyze_latest_dish       # 菜品分析
-from services.llm_service import ask_llm                     # 大模型问答
+from pipeline.dish_enter import capture_and_analyze_dishes       # 菜品分析
 
 # 配置模块
 from config.base import app, flask

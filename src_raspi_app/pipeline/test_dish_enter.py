@@ -1,4 +1,4 @@
-from services.dish_analyze import capture_and_analyze_dishes
+from pipeline.dish_enter import capture_and_analyze_dishes
 
 if __name__ == "__main__":
     print("🔍 开始分析菜品...\n")
