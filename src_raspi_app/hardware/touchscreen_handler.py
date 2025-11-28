@@ -200,66 +200,24 @@ class TouchscreenCommandHandler:
 
     def start_listening(self):
         """开始监听触摸屏命令"""
-        if self.is_listening:
-            print("⚠️  触摸屏监听已在运行")
-            return
-
         if not self.display.serial_port or not self.display.serial_port.is_open:
             print("⚠️  串口未打开，无法启动触摸屏监听")
             return
 
-        self.is_listening = True
-        self.listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
-        self.listen_thread.start()
+        # 使用屏幕驱动的内置监听机制
+        self.display.start_listen(self._handle_received_command)
         print("📱 触摸屏命令监听已启动")
 
     def stop_listening(self):
         """停止监听触摸屏命令"""
-        self.is_listening = False
-        if self.listen_thread:
-            self.listen_thread.join(timeout=1)
+        # 停止屏幕驱动的监听
+        self.display.stop_listen()
         print("🛑 触摸屏命令监听已停止")
 
-    def _listen_loop(self):
-        """监听循环"""
-        buffer = b''
-        while self.is_listening:
-            try:
-                with self._lock:
-                    # 检查串口是否有数据可读
-                    if self.display.serial_port.in_waiting > 0:
-                        data = self.display.serial_port.read(self.display.serial_port.in_waiting)
-                    else:
-                        data = b''
-
-                if data:
-                    buffer += data
-                    print(f"📲 触摸屏收到数据: {data.hex()}")
-
-                    # 尝试处理完整的指令（根据结束符 0d0a 分割）
-                    while b'\x0d\x0a' in buffer:
-                        # 寻找以 0d0a 结尾的完整数据包
-                        parts = buffer.split(b'\x0d\x0a', 1)
-
-                        # 假设整个数据包以 55 开头
-                        packet_data = parts[0]
-
-                        # 检查数据包是否以 55 开头（协议头）
-                        if packet_data.startswith(b'\x55'):
-                            # 处理命令（去掉头部的 55）
-                            cmd_payload = packet_data[1:]
-                            self._process_command(cmd_payload)
-                        else:
-                            # 如果不是以 55 开头，可能发生了粘包或数据错乱
-                            print(f"⚠️ 无效数据包头: {packet_data.hex()}")
-
-                        # 保留剩余数据
-                        buffer = parts[1] if len(parts) > 1 else b''
-
-            except Exception as e:
-                print(f"⚠️  触摸屏监听异常：{e}")
-
-            time.sleep(0.05)  # 降低CPU占用
+    def _handle_received_command(self, cmd: bytes):
+        """处理接收到的命令（来自屏幕驱动的回调）"""
+        print(f"📲 触摸屏收到数据: {cmd.hex()}")
+        self._process_command(cmd)
 
     def _process_command(self, command: bytes):
         """处理接收到的命令"""

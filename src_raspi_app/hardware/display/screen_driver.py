@@ -95,7 +95,8 @@ class ScreenDriver:
                     while True:
                         start = buffer.find(b'\x55')
                         if start == -1:
-                            buffer = b''  # 没头就清空
+                            # 如果找不到0x55头，清空整个缓冲区（丢弃垃圾数据）
+                            buffer = b''
                             break
 
                         # 至少要 4 字节：55 XX 0D 0A
@@ -117,6 +118,7 @@ class ScreenDriver:
                             buffer = buffer[start+4:]  # 移除已处理帧
                         else:
                             # 不是完整帧，丢弃当前头，从下一个字节继续找
+                            # 重要：这里要从 start+1 开始，而不是 start+4，以避免丢掉可能的帧头
                             buffer = buffer[start+1:]
                             continue
 

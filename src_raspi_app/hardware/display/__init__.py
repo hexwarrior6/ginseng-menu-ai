@@ -5,4 +5,4 @@ Display hardware module
 
 from .screen_driver import ScreenDriver
 
-__all__ = ['screen_driver']
+__all__ = ['ScreenDriver']
