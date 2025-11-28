@@ -14,6 +14,7 @@ from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 from hardware.rfid.rfid_reader import NFCReader
 from pipeline.dish_suggest import process_speech_to_llm
+from pipeline.dish_enter import capture_and_analyze_dishes
 from utils.tts_util import text_to_speech, VOICE_OPTIONS
 
 
@@ -26,7 +27,7 @@ class TouchscreenCommand(Enum):
     ENABLE_NFC = b'\x03'     # 启动NFC -> 55 03 0d0a
     DISABLE_NFC = b'\x04'    # 关闭NFC -> 55 04 0d0a
     BACK_BUTTON = b'\x02'    # 返回按钮 -> 55 02 0d0a (保留原有功能)
-    MENU_PAGE = b'\x07'      # 菜单页面 -> 55 07 0d0a (调整编号)
+    MENU_PAGE = b'\x07'      # 拍照分析菜品 -> 55 07 0d0a (调整编号)
     ANALYZE_BUTTON = b'\x08' # 分析按钮 -> 55 08 0d0a (调整编号)
     RFID_PAGE = b'\x09'      # 刷卡页面 -> 55 09 0d0a (调整编号)
 
@@ -65,6 +66,9 @@ class TouchscreenCommandHandler:
         # 用户相关属性
         self.current_user_uid = None
 
+        # 日志相关属性
+        self.dish_enter_log_history = []
+
         # 命令处理映射表 - 更新为新的命令映射
         self.command_handlers = {
             TouchscreenCommand.VISITOR_MODE.value: self._handle_visitor_mode,
@@ -77,6 +81,23 @@ class TouchscreenCommandHandler:
             TouchscreenCommand.ANALYZE_BUTTON.value: self._handle_analyze_command,
             TouchscreenCommand.RFID_PAGE.value: self._handle_rfid_page_command,
         }
+
+    def _append_dish_enter_log(self, message: str):
+        """Append a message with timestamp to the dish enter log and send to display"""
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}"
+
+        # Add to log history
+        self.dish_enter_log_history.append(formatted_message)
+
+        # Keep only the last 10 entries to prevent overflow
+        if len(self.dish_enter_log_history) > 10:
+            self.dish_enter_log_history = self.dish_enter_log_history[-10:]
+
+        # Join all log entries with newline characters and send to display
+        full_log = "\\r".join(self.dish_enter_log_history)  # Use \r\n for Nextion line breaks
+        self.display.send_nextion_cmd(f'dish_enter_log.txt="{full_log}"')
 
     def start_listening(self):
         """开始监听触摸屏命令"""
@@ -368,9 +389,54 @@ class TouchscreenCommandHandler:
         self.display.send_nextion_cmd("page 0")
 
     def _handle_menu_command(self):
-        """处理菜单命令"""
-        print("📋 收到菜单命令")
-        self.display.send_nextion_cmd("page menu")
+        """处理拍照分析菜品命令"""
+        print("📸 收到拍照分析菜品命令")
+        # 发送带时间戳的英文日志到串口屏
+        self._append_dish_enter_log("Starting dish analysis...")
+
+        try:
+            # 调用dish_enter.py中的功能进行拍照
+            print("📷 Capturing image...")
+            self._append_dish_enter_log("Capturing image...")
+
+            result = capture_and_analyze_dishes()
+
+            if result and result.get('dishes'):
+                # 拍摄成功
+                self._append_dish_enter_log("Image captured successfully!")
+
+                # 开始大模型分析
+                self._append_dish_enter_log("Starting AI analysis...")
+
+                dish_count = len(result.get('dishes', []))
+
+                # 显示具体的菜名
+                dish_names = [dish.get('name', 'Unknown') for dish in result.get('dishes', [])]
+                dish_names_str = ", ".join(dish_names)
+                self._append_dish_enter_log(f"Found dishes: {dish_names_str}")
+
+                success_msg = f"Analysis complete! Found {dish_count} dishes."
+                print(f"🎉 {success_msg}")
+
+                # 发送成功消息到串口屏
+                self._append_dish_enter_log(success_msg)
+
+                # 可以选择跳转到显示结果的页面
+                # self.display.send_nextion_cmd("page dish_results")  # 如果有相应页面
+
+            else:
+                error_msg = "Analysis failed or no dishes found."
+                print(f"❌ {error_msg}")
+
+                # 发送错误消息到串口屏
+                self._append_dish_enter_log(error_msg)
+
+        except Exception as e:
+            error_msg = f"Error during dish analysis: {str(e)}"
+            print(f"❌ {error_msg}")
+
+            # 发送错误消息到串口屏
+            self._append_dish_enter_log(error_msg)
 
     def _handle_analyze_command(self):
         """处理分析命令"""
