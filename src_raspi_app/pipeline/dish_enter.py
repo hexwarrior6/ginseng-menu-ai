@@ -2,7 +2,8 @@ import os
 import base64
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
+from bson import ObjectId
 from hardware.camera.raspberry_camera import capture_image
 from zhipuai import ZhipuAI
 
@@ -13,6 +14,22 @@ from database import insert_data, get_db_connection
 
 ZHIPUAI_API_KEY = "e62abd4ebbba488ea4a96771929b6c6d.41RwSM4Nd0Y92AEN"
 IMG_DIR = "src_raspi_app/temp/captured_dish"
+
+CANTEEN_DISHES_PROMPT = """
+Main Dishes (Meat/Poultry):
+Braised Pork Chop, Stir-fried Diced Chicken in Soy Bean Paste, Yu-Shiang Shredded Pork, Sweet and Sour Pork Tenderloin, Deep-Fried Pork Strips with Spicy Salt, Braised Chicken Chunks, Chicken Curry, Diced Chicken with Chili Peppers, Kung Pao Chicken, Beef with Black Pepper Sauce, Scallion Beef, Poached Sliced Pork in Hot Chili Oil, Twice-Cooked Pork Slices, Shredded Pork in Beijing Sauce, Steamed Pork with Preserved Mustard Greens, Braised Pork Meatballs (Lion's Head Meatballs), Sweet and Sour Spare Ribs, Fried Shrimp with Spicy Salt, Steamed Fish Fillets, Braised Ribbon Fish
+Vegetable Dishes:
+Hot and Sour Shredded Potatoes, Mapo Tofu, Scrambled Eggs with Tomatoes, Shredded Potatoes with Green Pepper, Stir-fried Greens with Garlic, Stir-fried Lettuce in Oyster Sauce, Stir-fried Cabbage, Hand-Torn Cabbage Stir-fry, Sautéed Potato, Green Pepper & Eggplant, Pan-Seared Green Peppers, Yu-Shiang Eggplant, Dry-Fried Green Beans, Stir-fried Bean Sprouts, Stir-fried Water Spinach with Garlic, Spinach in Superior Broth
+Meat & Vegetable Combos:
+Shredded Pork with Green Pepper, Shredded Pork with Celery, Shredded Pork with Garlic Sprouts, Stir-fried Pork with Green Beans, Stir-fried Pork Slices with Wood Ear Mushrooms, Stir-fried Pork Slices with Cauliflower, Stir-fried Pork Slices with Lettuce, Stir-fried Pork Slices with Chinese Yam, Stir-fried Pork Slices with Zucchini, Scrambled Eggs with Cucumber, Scrambled Eggs with Chinese Chives, Stir-fried Beef with Onion, Stir-fried Beef with Green Pepper, Stir-fried Pork Slices with Potato, Stir-fried Pork Slices with Radish
+Egg Dishes:
+Scrambled Eggs with Tomatoes, Scrambled Eggs with Chinese Chives, Scrambled Eggs with Scallions, Scrambled Eggs with Shrimp, Scrambled Eggs with Wood Ear Mushrooms, Scrambled Eggs with Green Pepper, Scrambled Eggs with Cucumber, Scrambled Eggs with Ham, Steamed Egg Custard, Pan-Fried Sunny-Side-Up Egg
+Soups:
+Tomato and Egg Drop Soup, Seaweed and Egg Drop Soup, Green Vegetable and Tofu Soup, Winter Melon Soup, Radish Soup, Hot and Sour Soup, Three Delicacies Soup, Pork Rib Soup, Chicken Soup, Fish Head and Tofu Soup
+Staples:
+Steamed Rice, Steamed Buns, Twisted Steamed Buns, Noodles, Dumplings, Wontons, Fried Rice, Fried Noodles, Fried Rice Noodles, Congee
+Cold Dishes:
+Smashed Cucumber Salad, Cold Tossed Cucumber, Cold Tossed Wood Ear Mushrooms, Cold Tossed Shredded Kelp, Cold Tossed Tofu Skin, Cold Tossed Three Shreds, Tofu with Century Egg, Pickled Radish in Soy Dressing, Kimchi/Pickled Vegetables, Cold Tossed Bean Thread Noodles"""
 
 def extract_json_from_text(text):
     """从AI响应中提取完整的JSON数据，处理特殊标记"""
@@ -98,50 +115,70 @@ def manual_json_extraction(text):
     
     return None
 
-def save_dishes_to_database(dishes_data):
-    """将菜品数据逐个保存到数据库"""
+def check_existing_dish(name):
+    """检查当天是否已经存在相同名称的菜品（MongoDB 版）"""
     try:
+        db = get_db_connection()
+        dishes = db["dishes"]
+
+        now = datetime.now()
+        start_of_day = datetime(now.year, now.month, now.day)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        result = dishes.find_one({
+            "name": name,
+            "timestamp": {"$gte": start_of_day, "$lt": end_of_day}
+        })
+
+        return result["_id"] if result else None
+
+    except Exception as e:
+        print(f"❌ Error checking existing dish: {e}")
+        return None
+    
+def save_dishes_to_database(dishes_data):
+    try:
+        db = get_db_connection()
+        dishes_col = db["dishes"]
+
         saved_ids = []
         dishes_list = dishes_data.get('dishes', [])
-        
-        if not dishes_list:
-            print("⚠️ No dishes found to save")
-            return []
-        
-        print(f"💾 Saving {len(dishes_list)} dishes to database...")
-        
-        for i, dish in enumerate(dishes_list):
-            # 准备单个菜品的数据结构
-            dish_record = {
-                "name": dish.get('name', 'Unknown Dish'),
-                "category": dish.get('category', 'Unknown'),
-                "timestamp": datetime.now(),
-                "calories": int(float(dish.get('calories', 0))),
-                "nutrition": {
-                    "protein_g": round(float(dish.get('nutrition', {}).get('protein_g', 0)), 1),
-                    "carbs_g": round(float(dish.get('nutrition', {}).get('carbs_g', 0)), 1),
-                    "fat_g": round(float(dish.get('nutrition', {}).get('fat_g', 0)), 1),
-                    "fiber_g": round(float(dish.get('nutrition', {}).get('fiber_g', 0)), 1)
-                }
-            }
-            
-            # 使用insert_data逐个插入
-            result_id = insert_data("dishes", dish_record)
-            if result_id:
-                saved_ids.append(result_id)
-                print(f"  ✅ Dish {i+1}: '{dish_record['name']}' saved with ID: {result_id}")
-            else:
-                print(f"  ❌ Failed to save dish {i+1}: '{dish_record['name']}'")
-        
-        print(f"💾 Database operation completed: {len(saved_ids)}/{len(dishes_list)} dishes saved successfully")
-        return saved_ids
-                
-    except Exception as e:
-        print(f"❌ Error saving to database: {e}")
-        import traceback
-        traceback.print_exc()
-        return []
+        now = datetime.now()
 
+        for dish in dishes_list:
+            name = dish.get('name')
+            existing_id = check_existing_dish(name)
+
+            # 构建要保存的数据
+            record = {
+                "name": name,
+                "category": dish.get("category"),
+                "timestamp": now,
+                "calories": int(float(dish.get("calories", 0))),
+                "nutrition": {
+                    "protein_g": float(dish.get("nutrition", {}).get("protein_g", 0)),
+                    "carbs_g": float(dish.get("nutrition", {}).get("carbs_g", 0)),
+                    "fat_g": float(dish.get("nutrition", {}).get("fat_g", 0)),
+                    "fiber_g": float(dish.get("nutrition", {}).get("fiber_g", 0)),
+                },
+            }
+
+            if existing_id:
+                # === 已存在：先删掉旧记录，再插入新记录 ===
+                dishes_col.delete_one({"_id": ObjectId(existing_id)})
+                print(f"  🔄 Deleted old dish ID {existing_id}")
+
+            # 插入新记录
+            insert_result = dishes_col.insert_one(record)
+            print(f"  ✅ Inserted new dish '{name}' with ID {insert_result.inserted_id}")
+            saved_ids.append(str(insert_result.inserted_id))
+
+        return saved_ids
+
+    except Exception as e:
+        print(f"❌ Error saving dishes: {e}")
+        return []
+    
 def capture_and_analyze_dishes():
     """拍照并分析多个菜品，返回JSON格式的结构化数据并自动保存到数据库"""
     
@@ -162,46 +199,48 @@ def capture_and_analyze_dishes():
     with open(result, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
     
-    # 更严格的英文系统提示词
-    system_prompt = """You are a professional food nutrition analysis system. Analyze ALL visible dishes in the image and return STRICT JSON format.
+    # 修改后的系统提示词，添加菜品名称标准化要求
+    system_prompt = f"""You are a professional food nutrition analysis system. Analyze ALL visible dishes in the image and return STRICT JSON format.
 
-CRITICAL: You MUST identify MULTIPLE dishes if present. Return EXACTLY this format without any additional text or markers:
+CRITICAL REQUIREMENTS:
+1. You MUST identify MULTIPLE dishes if present
+2. Use STANDARDIZED dish names from the reference list below
+3. If a dish matches multiple names, choose the MOST SPECIFIC and STANDARD name
+4. Return EXACTLY this format without any additional text or markers:
 
-{
+REFERENCE DISH NAMES (use these EXACT names when matching):
+{CANTEEN_DISHES_PROMPT}
+
+STANDARDIZATION RULES:
+- For "Scrambled Eggs with Tomatoes", NOT "Tomato Scrambled Eggs" or "Eggs with Tomato"
+- For "Yu-Shiang Shredded Pork", NOT "Yuxiang Pork" or "Fish-Flavored Shredded Pork"  
+- For "Braised Pork Chop", NOT "Stewed Pork Chop" or "Red-Cooked Pork Chop"
+- Use the EXACT names from the reference list above
+
+RETURN FORMAT:
+{{
     "dishes": [
-        {
-            "name": "Dish name 1",
+        {{
+            "name": "Standardized dish name from reference list",
             "category": "Cuisine type",
             "calories": 400,
-            "nutrition": {
+            "nutrition": {{
                 "protein_g": 25,
                 "carbs_g": 45,
                 "fat_g": 15,
                 "fiber_g": 5
-            },
+            }},
             "ingredients": ["ingredient1", "ingredient2"],
             "confidence": 0.9
-        },
-        {
-            "name": "Dish name 2", 
-            "category": "Cuisine type",
-            "calories": 350,
-            "nutrition": {
-                "protein_g": 20,
-                "carbs_g": 40,
-                "fat_g": 12,
-                "fiber_g": 4
-            },
-            "ingredients": ["ingredient3", "ingredient4"],
-            "confidence": 0.8
-        }
+        }}
     ]
-}
+}}
 
 IMPORTANT:
 - Do NOT include <|begin_of_box|> or <|end_of_box|> markers
 - Return PURE JSON only, no other text
-- Include ALL dishes you see in the image"""
+- Include ALL dishes you see in the image
+- Use STANDARDIZED names to ensure consistency across multiple recordings"""
 
     try:
         response = client.chat.completions.create(
@@ -216,7 +255,7 @@ IMPORTANT:
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Analyze this food image. Identify EVERY dish you see. Return only PURE JSON with all dishes in the 'dishes' array. Do not include any markers or additional text."
+                            "text": "Analyze this food image. Identify EVERY dish you see using STANDARDIZED names from the reference list. Return only PURE JSON with all dishes in the 'dishes' array. Do not include any markers or additional text. CRITICAL: Use exact standardized names to avoid duplicate entries for the same dish."
                         },
                         {
                             "type": "image_url",
@@ -283,11 +322,11 @@ IMPORTANT:
         
         print(f"\n✅ Dish analysis completed! Found {len(valid_dishes)} valid dishes")
         
-        # 3. 自动保存到数据库
+        # 3. 自动保存到数据库（包含重复检查逻辑）
         if valid_dishes:
             saved_ids = save_dishes_to_database(analysis_result)
             if saved_ids:
-                print(f"🎉 Successfully saved {len(saved_ids)} dishes to database!")
+                print(f"🎉 Successfully processed {len(saved_ids)} dishes to database!")
             else:
                 print("⚠️ Analysis completed but failed to save any dishes to database")
         else:
