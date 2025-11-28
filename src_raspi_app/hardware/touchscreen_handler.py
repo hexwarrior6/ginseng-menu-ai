@@ -68,6 +68,8 @@ class TouchscreenCommandHandler:
 
         # 日志相关属性
         self.dish_enter_log_history = []
+        self.MAX_LINES = 9  # 最多显示9行
+        self.MAX_CHARS_PER_LINE = 32  # 每行最多32个字符
 
         # 命令处理映射表 - 更新为新的命令映射
         self.command_handlers = {
@@ -82,22 +84,119 @@ class TouchscreenCommandHandler:
             TouchscreenCommand.RFID_PAGE.value: self._handle_rfid_page_command,
         }
 
+    def _split_text_to_lines(self, text: str) -> list:
+        """
+        将文本分割成适合串口屏显示的行
+        
+        Args:
+            text: 要分割的文本
+            
+        Returns:
+            list: 分割后的行列表
+        """
+        lines = []
+        current_line = ""
+        
+        for char in text:
+            # 如果当前行长度达到限制，或者遇到换行符
+            if len(current_line) >= self.MAX_CHARS_PER_LINE or char == '\n':
+                if current_line:
+                    lines.append(current_line)
+                    current_line = ""
+                if char == '\n':
+                    continue
+            
+            # 添加字符到当前行
+            current_line += char
+        
+        # 添加最后一行
+        if current_line:
+            lines.append(current_line)
+        
+        return lines
+
+    def _truncate_text_to_fit(self, text: str, max_lines: int = None) -> str:
+        """
+        截断文本以适应显示限制
+        
+        Args:
+            text: 要截断的文本
+            max_lines: 最大行数（默认使用类属性）
+            
+        Returns:
+            str: 截断后的文本
+        """
+        if max_lines is None:
+            max_lines = self.MAX_LINES
+            
+        lines = self._split_text_to_lines(text)
+        
+        # 如果行数超过限制，只保留最后max_lines行
+        if len(lines) > max_lines:
+            lines = lines[-max_lines:]
+            
+        return "\\r".join(lines)
+
     def _append_dish_enter_log(self, message: str):
         """Append a message with timestamp to the dish enter log and send to display"""
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
         formatted_message = f"[{timestamp}] {message}"
 
-        # Add to log history
-        self.dish_enter_log_history.append(formatted_message)
+        # 将消息分割成适合显示的行
+        message_lines = self._split_text_to_lines(formatted_message)
+        
+        # 将分割后的行添加到日志历史
+        self.dish_enter_log_history.extend(message_lines)
 
-        # Keep only the last 10 entries to prevent overflow
-        if len(self.dish_enter_log_history) > 10:
-            self.dish_enter_log_history = self.dish_enter_log_history[-10:]
+        # 限制总行数不超过MAX_LINES
+        if len(self.dish_enter_log_history) > self.MAX_LINES:
+            self.dish_enter_log_history = self.dish_enter_log_history[-self.MAX_LINES:]
 
-        # Join all log entries with newline characters and send to display
-        full_log = "\\r".join(self.dish_enter_log_history)  # Use \r\n for Nextion line breaks
-        self.display.send_nextion_cmd(f'dish_enter_log.txt="{full_log}"')
+        # 将日志历史连接成适合串口屏显示的格式
+        # 使用\\r作为换行符（Nextion显示器的换行符）
+        display_text = "\\r".join(self.dish_enter_log_history)
+        
+        # 发送到串口屏
+        self.display.send_nextion_cmd(f'dish_enter_log.txt="{display_text}"')
+
+    def _append_dish_enter_log_advanced(self, message: str, auto_split: bool = True):
+        """
+        高级版本的日志追加函数，提供更多控制选项
+        
+        Args:
+            message: 要添加的消息
+            auto_split: 是否自动分割长文本
+        """
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        if auto_split:
+            # 自动分割长消息
+            lines_to_add = self._split_text_to_lines(f"[{timestamp}] {message}")
+        else:
+            # 手动控制，假设消息已经格式化为单行
+            formatted_message = f"[{timestamp}] {message}"
+            # 确保单行不超过字符限制
+            if len(formatted_message) > self.MAX_CHARS_PER_LINE:
+                formatted_message = formatted_message[:self.MAX_CHARS_PER_LINE-3] + "..."
+            lines_to_add = [formatted_message]
+        
+        # 添加新行
+        self.dish_enter_log_history.extend(lines_to_add)
+        
+        # 限制总行数
+        if len(self.dish_enter_log_history) > self.MAX_LINES:
+            self.dish_enter_log_history = self.dish_enter_log_history[-self.MAX_LINES:]
+        
+        # 更新显示
+        display_text = "\\r".join(self.dish_enter_log_history)
+        self.display.send_nextion_cmd(f'dish_enter_log.txt="{display_text}"')
+
+    def clear_dish_enter_log(self):
+        """清空菜品录入日志"""
+        self.dish_enter_log_history = []
+        self.display.send_nextion_cmd('dish_enter_log.txt=""')
 
     def start_listening(self):
         """开始监听触摸屏命令"""
@@ -290,18 +389,6 @@ class TouchscreenCommandHandler:
     def _get_current_uid(self) -> str:
         """从显示屏获取当前uid"""
         try:
-            # 从显示组件中获取uid
-            # Note: We can't actually read the value from Nextion display directly
-            # This is a limitation of Nextion protocol - it doesn't support reading component values
-            # Instead, we'll maintain the uid in memory since it was set during NFC login
-            # The uid would have been stored during NFC login in self._on_uid_read method
-            # For now, we'll return the last known uid if available, or None
-            # In a real system, you may want to store the current user's uid in an instance variable
-            # when the NFC card is read, for example in self.current_user_uid
-
-            # Since we don't currently store the current uid in an instance variable,
-            # we'll need to add that functionality. For now, we'll implement a temporary
-            # solution by adding an instance variable to hold the current user's uid
             return getattr(self, 'current_user_uid', None)
         except Exception as e:
             print(f"⚠️ 获取当前uid时发生错误: {e}")
@@ -314,7 +401,6 @@ class TouchscreenCommandHandler:
                 """处理部分识别结果（流式）"""
                 print(f"[流式识别] {text}")
                 # 将部分识别结果显示到串口屏上
-                # 假设串口屏上有名为"partial_text"的文本组件来显示实时文本
                 escaped_text = text.replace('"', '\\"')  # 转义引号
                 self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
                 self.display.send_nextion_cmd("reco_result.pco=0")
@@ -391,6 +477,10 @@ class TouchscreenCommandHandler:
     def _handle_menu_command(self):
         """处理拍照分析菜品命令"""
         print("📸 收到拍照分析菜品命令")
+        
+        # 清空日志
+        self.clear_dish_enter_log()
+        
         # 发送带时间戳的英文日志到串口屏
         self._append_dish_enter_log("Starting dish analysis...")
 
@@ -413,16 +503,17 @@ class TouchscreenCommandHandler:
                 # 显示具体的菜名
                 dish_names = [dish.get('name', 'Unknown') for dish in result.get('dishes', [])]
                 dish_names_str = ", ".join(dish_names)
-                self._append_dish_enter_log(f"Found dishes: {dish_names_str}")
+                
+                # 直接显示菜名，不做截断处理
+                self._append_dish_enter_log(f"Found {dish_count} dishes:")
+                for dish_name in dish_names:
+                    self._append_dish_enter_log(f"- {dish_name}")
 
                 success_msg = f"Analysis complete! Found {dish_count} dishes."
                 print(f"🎉 {success_msg}")
 
                 # 发送成功消息到串口屏
                 self._append_dish_enter_log(success_msg)
-
-                # 可以选择跳转到显示结果的页面
-                # self.display.send_nextion_cmd("page dish_results")  # 如果有相应页面
 
             else:
                 error_msg = "Analysis failed or no dishes found."
@@ -437,7 +528,7 @@ class TouchscreenCommandHandler:
 
             # 发送错误消息到串口屏
             self._append_dish_enter_log(error_msg)
-
+            
     def _handle_analyze_command(self):
         """处理分析命令"""
         print("🔍 收到分析命令")
