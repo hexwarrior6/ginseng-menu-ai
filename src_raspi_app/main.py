@@ -138,7 +138,7 @@ class GinsengMenuApp:
 
         # NFC读卡现在由touchscreen_handler管理
         print("💳 NFC读卡功能已启用，请刷卡...")
-        # 保持此页面直到NFC读取成功（通过串口屏跳转到voice_reco页面）
+        # 保持此页面直到NFC读取成功（通过串口屏跳转到dish_suggest页面）
 
     def clear_display(self):
         """休眠时清屏"""
