@@ -1,6 +1,6 @@
-from services.dish_analyze import analyze_latest_dish
+from pipeline.dish_enter import capture_and_analyze_dishes
 
 if __name__ == "__main__":
     print("🔍 开始分析菜品...\n")
-    result = analyze_latest_dish()
+    result = capture_and_analyze_dishes()
     print(f"{result}\n🎉 分析完成！")

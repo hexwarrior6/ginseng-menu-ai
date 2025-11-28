@@ -1,4 +1,4 @@
-from raspberry_camera import capture_image
+from hardware.camera.raspberry_camera import capture_image
 
 print("开始拍照测试...")
 

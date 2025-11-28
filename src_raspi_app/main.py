@@ -19,8 +19,7 @@ from hardware.rfid import read_uid                     # RFID读卡
 from hardware.touchscreen_handler import TouchscreenCommandHandler  # 触摸屏命令处理器
 
 # 服务模块
-from services.dish_analyze import analyze_latest_dish       # 菜品分析
-from services.llm_service import ask_llm                     # 大模型问答
+from pipeline.dish_enter import capture_and_analyze_dishes       # 菜品分析
 
 # 配置模块
 from config.base import app, flask
@@ -138,7 +137,7 @@ class GinsengMenuApp:
 
         # NFC读卡现在由touchscreen_handler管理
         print("💳 NFC读卡功能已启用，请刷卡...")
-        # 保持此页面直到NFC读取成功（通过串口屏跳转到voice_reco页面）
+        # 保持此页面直到NFC读取成功（通过串口屏跳转到dish_suggest页面）
 
     def clear_display(self):
         """休眠时清屏"""

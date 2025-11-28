@@ -3,7 +3,7 @@
 测试语音识别结果处理模块
 """
 
-from services.speech_to_llm import process_speech_to_llm, process_command_speech_to_llm
+from pipeline.dish_suggest import process_speech_to_llm, process_command_speech_to_llm
 
 
 def test_basic_speech_to_llm():

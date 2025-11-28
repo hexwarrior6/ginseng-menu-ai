@@ -13,8 +13,7 @@ import json
 from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 from hardware.rfid.rfid_reader import NFCReader
-from services.speech_to_llm import process_speech_to_llm
-# 导入TTS工具
+from pipeline.dish_suggest import process_speech_to_llm
 from utils.tts_util import text_to_speech, VOICE_OPTIONS
 
 
@@ -347,8 +346,8 @@ class TouchscreenCommandHandler:
     def _on_uid_read(self, uid: str):
         """NFC读取到UID的回调函数"""
         print(f"👤 用户登录：{uid}")
-        # 发送串口屏指令跳转到voice_reco页面，并设置uid.txt
-        self.display.send_nextion_cmd("page voice_reco")
+        # 发送串口屏指令跳转到dish_suggest页面，并设置uid.txt
+        self.display.send_nextion_cmd("page dish_suggest")
         self.display.send_nextion_cmd(f"uid.txt=\"{uid}\"")
         # Store the uid in an instance variable for later use
         self.current_user_uid = uid
