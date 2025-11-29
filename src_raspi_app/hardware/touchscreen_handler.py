@@ -15,6 +15,7 @@ from hardware.audio.speech_recognition import recognize_speech_continuous_with_s
 from hardware.rfid.rfid_reader import NFCReader
 from pipeline.dish_suggest import process_speech_to_llm
 from pipeline.dish_enter import capture_and_analyze_dishes
+from utils.clean_llm_response import clean_llm_response
 from utils.tts_util import text_to_speech, VOICE_OPTIONS
 
 
@@ -287,7 +288,7 @@ class TouchscreenCommandHandler:
         # 如果识别到文本，则将其传递给大模型处理
         if self.recognized_text.strip():
             print("🤖 将语音识别结果交给大模型处理...")
-            llm_result = process_speech_to_llm(self.recognized_text, current_uid)
+            llm_result = clean_llm_response(process_speech_to_llm(self.recognized_text, current_uid))
             if llm_result:
                 print(f"🤖 大模型处理结果: {llm_result}")
                 # 将大模型结果发送到显示屏组件
