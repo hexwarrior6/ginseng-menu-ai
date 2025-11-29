@@ -305,29 +305,58 @@ class TouchscreenCommandHandler:
     def _speak_llm_result(self, text: str):
         """
         使用TTS朗读大模型返回的文本
-        
+
         Args:
             text: 要朗读的文本
         """
         if not self.tts_enabled:
             print("🔇 TTS功能已禁用，跳过朗读")
             return
-            
+
         if not text or not text.strip():
             print("⚠️ 要朗读的文本为空")
             return
-            
+
         try:
             print(f"🔊 开始TTS朗读: {text}")
             # 在单独的线程中运行TTS，避免阻塞主线程
             tts_thread = threading.Thread(
-                target=self._run_tts, 
+                target=self._run_tts,
                 args=(text,),
                 daemon=True
             )
             tts_thread.start()
             print("✅ TTS朗读任务已启动")
-            
+
+        except Exception as e:
+            print(f"❌ TTS朗读失败: {e}")
+
+    def _speak_analysis_result(self, text: str):
+        """
+        使用TTS朗读分析结果
+
+        Args:
+            text: 要朗读的文本
+        """
+        if not self.tts_enabled:
+            print("🔇 TTS功能已禁用，跳过朗读")
+            return
+
+        if not text or not text.strip():
+            print("⚠️ 要朗读的文本为空")
+            return
+
+        try:
+            print(f"🔊 开始TTS朗读分析结果: {text}")
+            # 在单独的线程中运行TTS，避免阻塞主线程
+            tts_thread = threading.Thread(
+                target=self._run_tts,
+                args=(text,),
+                daemon=True
+            )
+            tts_thread.start()
+            print("✅ TTS朗读任务已启动")
+
         except Exception as e:
             print(f"❌ TTS朗读失败: {e}")
 
@@ -490,8 +519,40 @@ class TouchscreenCommandHandler:
     def _handle_analyze_command(self):
         """处理分析命令"""
         print("🔍 收到分析命令")
-        # 可以触发拍照分析流程
-        self.display.send_nextion_cmd("page analyze")
+
+        # 导入plate_analyze模块
+        from pipeline.plate_analyze import capture_and_identify_dishes_for_user
+
+        # 获取当前用户的UID，如果没有则传入None
+        current_uid = self.current_user_uid or "Anonymous"
+        self.display.send_nextion_cmd('identify_ret.txt="Capturing image..."')
+
+        # 调用plate_analyze模块进行拍摄和分析
+        try:
+            print(f"📸 开始菜品拍照和分析，用户ID: {current_uid}")
+
+            # 调用plate_analyze模块的函数
+            result = capture_and_identify_dishes_for_user(current_uid) if current_uid else capture_and_identify_dishes_for_user(None)
+
+            if result:
+                print(f"✅ 分析结果: {result}")
+
+                # 将结果发送到串口屏的identify_ret文本框
+                escaped_result = result.replace('"', '\\"')  # 转义引号
+                self.display.send_nextion_cmd(f'identify_ret.txt="{escaped_result}"')
+
+                # 使用TTS朗读结果（类似于菜品推荐逻辑）
+                self._speak_analysis_result(result)
+            else:
+                print("⚠️ 分析结果为空")
+                self.display.send_nextion_cmd('identify_ret.txt="分析失败，请重试"')
+
+        except Exception as e:
+            print(f"❌ 菜品分析过程中出现错误: {e}")
+            error_msg = "菜品分析失败，请重试"
+            self.display.send_nextion_cmd(f'identify_ret.txt="{error_msg}"')
+            # 使用TTS朗读错误信息
+            self._speak_analysis_result(error_msg)
 
     def _handle_rfid_page_command(self):
         """处理进入刷卡页面命令"""
