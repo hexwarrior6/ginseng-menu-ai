@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
 """
 人参菜单AI系统主程序 - 优化版
-修复超声波检测失效问题
+修复超声波检测失效问题，清理无用代码
 """
 
 import time
 import threading
 import signal
 import sys
-from typing import Optional
 
 # 硬件模块
 from hardware.ultrasonic import ProximityDetector
-from hardware.audio import recognize_speech_continuous, init_recognizer
-from hardware.camera import capture_image
+from hardware.audio import init_recognizer
 from hardware.display import ScreenDriver
-from hardware.rfid import read_uid
 from hardware.touchscreen_handler import TouchscreenCommandHandler
-
-# 服务模块
-from pipeline.dish_enter import capture_and_analyze_dishes
-
-# 配置模块
-from config.base import app, flask
-from config.hardware import ultrasonic
-from config.model import vision_model, text_model
 
 
 class GinsengMenuApp:
