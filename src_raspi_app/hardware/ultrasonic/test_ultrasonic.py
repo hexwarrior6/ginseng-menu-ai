@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script for ultrasonic sensor functionality
+支持通过输入数字选择测试模块
 """
 
 import time
@@ -59,18 +60,64 @@ def test_simple_proximity():
     print("Simple proximity test completed.\n")
 
 
-if __name__ == "__main__":
-    print("Starting ultrasonic sensor tests...\n")
+def show_menu():
+    """Display test menu options."""
+    print("\n" + "="*50)
+    print("Ultrasonic Sensor Test Menu")
+    print("="*50)
+    print("1. Test basic sensor functionality")
+    print("2. Test simple proximity detection")
+    print("3. Test proximity detection with timing")
+    print("4. Run all tests")
+    print("0. Exit")
+    print("="*50)
+
+
+def main():
+    """Main function with interactive test selection."""
+    print("Starting ultrasonic sensor tests...")
+    
+    test_functions = {
+        1: test_basic_sensor,
+        2: test_simple_proximity,
+        3: test_proximity_detection
+    }
     
     try:
-        test_basic_sensor()
-        test_simple_proximity()
-        test_proximity_detection()
-        
-        print("All tests completed successfully!")
+        while True:
+            show_menu()
+            choice = input("\nPlease select a test (0-4): ").strip()
+            
+            if choice == '0':
+                print("Exiting test program.")
+                break
+            elif choice == '4':
+                # Run all tests
+                print("\nRunning all tests...")
+                for test_name, test_func in test_functions.items():
+                    print(f"\nStarting test {test_name}...")
+                    test_func()
+                print("\nAll tests completed successfully!")
+            elif choice in ['1', '2', '3']:
+                # Run single test
+                test_num = int(choice)
+                test_func = test_functions[test_num]
+                print(f"\nStarting test {test_num}...")
+                test_func()
+                print(f"Test {test_num} completed successfully!")
+            else:
+                print("Invalid selection. Please enter a number between 0 and 4.")
+            
+            if choice != '0':
+                input("\nPress Enter to continue...")
+                
     except KeyboardInterrupt:
-        print("\nTests interrupted by user.")
+        print("\n\nTests interrupted by user.")
     except Exception as e:
         print(f"\nAn error occurred during testing: {str(e)}")
         import traceback
         traceback.print_exc()
+
+
+if __name__ == "__main__":
+    main()

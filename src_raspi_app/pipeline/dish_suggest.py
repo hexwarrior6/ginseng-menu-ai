@@ -276,17 +276,10 @@ def _update_user_preferences(uid: str, preferences_data: Dict[str, Any]) -> bool
         if allergies:
             preferences_update['allergies'] = allergies
         
-        # 处理其他偏好（从preferences字段或根级别）
-        other_preferences = _extract_preference_list(preferences_data, 'preferences')
-        if not other_preferences:
-            # 如果没有preferences字段，尝试从根级别提取其他偏好
-            other_preferences = []
-            for key, value in preferences_data.items():
-                if key not in ['dietary_restrictions', 'favorite_cuisines', 'favorite_foods', 'allergies', 'preferences'] and isinstance(value, list):
-                    other_preferences.extend(value)
-        
-        if other_preferences:
-            preferences_update['other_preferences'] = other_preferences
+        # 处理偏好信息
+        preferences = _extract_preference_list(preferences_data, 'preferences')
+        if preferences:
+            preferences_update['preferences'] = preferences
         
         if existing_user:
             # 更新现有用户 - 合并偏好信息
@@ -435,8 +428,6 @@ def process_command_speech_to_llm(speech_text: str, command_context: Optional[st
                 prompt = f"Today's menu information: {menu_info_str}\n\nIn the context of {command_context}, user voice input: {speech_text}\n\nProvide an appropriate response or perform the corresponding action based on today's menu. Also, extract relevant information from the user's input and return it in JSON format at the end of your response. Format: {{\"dietary_restrictions\": [], \"favorite_cuisines\": [], \"favorite_foods\": [], \"allergies\": [], \"preferences\": []}}"
             else:
                 prompt = f"Today's menu information: {menu_info_str}\n\nUser voice input: {speech_text}\n\nProvide an appropriate response or perform the corresponding action based on today's menu. Also, extract relevant information from the user's input and return it in JSON format at the end of your response. Format: {{\"dietary_restrictions\": [], \"favorite_cuisines\": [], \"favorite_foods\": [], \"allergies\": [], \"preferences\": []}}"
-
-        logging.info(f"向大模型发送请求 (上下文: {command_context}): {speech_text}")
 
         # 调用大模型服务
         result = ask_llm(prompt)

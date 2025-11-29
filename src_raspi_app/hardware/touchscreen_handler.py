@@ -14,6 +14,8 @@ from threading import Event
 from hardware.audio.speech_recognition import recognize_speech_continuous_with_stop_flag
 from hardware.rfid.rfid_reader import NFCReader
 from pipeline.dish_suggest import process_speech_to_llm
+from pipeline.dish_enter import capture_and_analyze_dishes
+from utils.clean_llm_response import clean_llm_response
 from utils.tts_util import text_to_speech, VOICE_OPTIONS
 
 
@@ -26,7 +28,7 @@ class TouchscreenCommand(Enum):
     ENABLE_NFC = b'\x03'     # 启动NFC -> 55 03 0d0a
     DISABLE_NFC = b'\x04'    # 关闭NFC -> 55 04 0d0a
     BACK_BUTTON = b'\x02'    # 返回按钮 -> 55 02 0d0a (保留原有功能)
-    MENU_PAGE = b'\x07'      # 菜单页面 -> 55 07 0d0a (调整编号)
+    MENU_PAGE = b'\x07'      # 拍照分析菜品 -> 55 07 0d0a (调整编号)
     ANALYZE_BUTTON = b'\x08' # 分析按钮 -> 55 08 0d0a (调整编号)
     RFID_PAGE = b'\x09'      # 刷卡页面 -> 55 09 0d0a (调整编号)
 
@@ -65,6 +67,11 @@ class TouchscreenCommandHandler:
         # 用户相关属性
         self.current_user_uid = None
 
+        # 日志相关属性
+        self.dish_enter_log_history = []
+        self.MAX_LINES = 9  # 最多显示9行
+        self.MAX_CHARS_PER_LINE = 32  # 每行最多32个字符
+
         # 命令处理映射表 - 更新为新的命令映射
         self.command_handlers = {
             TouchscreenCommand.VISITOR_MODE.value: self._handle_visitor_mode,
@@ -78,68 +85,140 @@ class TouchscreenCommandHandler:
             TouchscreenCommand.RFID_PAGE.value: self._handle_rfid_page_command,
         }
 
+    def _split_text_to_lines(self, text: str) -> list:
+        """
+        将文本分割成适合串口屏显示的行
+        
+        Args:
+            text: 要分割的文本
+            
+        Returns:
+            list: 分割后的行列表
+        """
+        lines = []
+        current_line = ""
+        
+        for char in text:
+            # 如果当前行长度达到限制，或者遇到换行符
+            if len(current_line) >= self.MAX_CHARS_PER_LINE or char == '\n':
+                if current_line:
+                    lines.append(current_line)
+                    current_line = ""
+                if char == '\n':
+                    continue
+            
+            # 添加字符到当前行
+            current_line += char
+        
+        # 添加最后一行
+        if current_line:
+            lines.append(current_line)
+        
+        return lines
+
+    def _truncate_text_to_fit(self, text: str, max_lines: int = None) -> str:
+        """
+        截断文本以适应显示限制
+        
+        Args:
+            text: 要截断的文本
+            max_lines: 最大行数（默认使用类属性）
+            
+        Returns:
+            str: 截断后的文本
+        """
+        if max_lines is None:
+            max_lines = self.MAX_LINES
+            
+        lines = self._split_text_to_lines(text)
+        
+        # 如果行数超过限制，只保留最后max_lines行
+        if len(lines) > max_lines:
+            lines = lines[-max_lines:]
+            
+        return "\\r".join(lines)
+
+    def _append_dish_enter_log(self, message: str):
+        """Append a message with timestamp to the dish enter log and send to display"""
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}"
+
+        # 将消息分割成适合显示的行
+        message_lines = self._split_text_to_lines(formatted_message)
+        
+        # 将分割后的行添加到日志历史
+        self.dish_enter_log_history.extend(message_lines)
+
+        # 限制总行数不超过MAX_LINES
+        if len(self.dish_enter_log_history) > self.MAX_LINES:
+            self.dish_enter_log_history = self.dish_enter_log_history[-self.MAX_LINES:]
+
+        # 将日志历史连接成适合串口屏显示的格式
+        # 使用\\r作为换行符（Nextion显示器的换行符）
+        display_text = "\\r".join(self.dish_enter_log_history)
+        
+        # 发送到串口屏
+        self.display.send_nextion_cmd(f'dish_enter_log.txt="{display_text}"')
+
+    def _append_dish_enter_log_advanced(self, message: str, auto_split: bool = True):
+        """
+        高级版本的日志追加函数，提供更多控制选项
+        
+        Args:
+            message: 要添加的消息
+            auto_split: 是否自动分割长文本
+        """
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        if auto_split:
+            # 自动分割长消息
+            lines_to_add = self._split_text_to_lines(f"[{timestamp}] {message}")
+        else:
+            # 手动控制，假设消息已经格式化为单行
+            formatted_message = f"[{timestamp}] {message}"
+            # 确保单行不超过字符限制
+            if len(formatted_message) > self.MAX_CHARS_PER_LINE:
+                formatted_message = formatted_message[:self.MAX_CHARS_PER_LINE-3] + "..."
+            lines_to_add = [formatted_message]
+        
+        # 添加新行
+        self.dish_enter_log_history.extend(lines_to_add)
+        
+        # 限制总行数
+        if len(self.dish_enter_log_history) > self.MAX_LINES:
+            self.dish_enter_log_history = self.dish_enter_log_history[-self.MAX_LINES:]
+        
+        # 更新显示
+        display_text = "\\r".join(self.dish_enter_log_history)
+        self.display.send_nextion_cmd(f'dish_enter_log.txt="{display_text}"')
+
+    def clear_dish_enter_log(self):
+        """清空菜品录入日志"""
+        self.dish_enter_log_history = []
+        self.display.send_nextion_cmd('dish_enter_log.txt=""')
+
     def start_listening(self):
         """开始监听触摸屏命令"""
-        if self.is_listening:
-            print("⚠️  触摸屏监听已在运行")
-            return
-
         if not self.display.serial_port or not self.display.serial_port.is_open:
             print("⚠️  串口未打开，无法启动触摸屏监听")
             return
 
-        self.is_listening = True
-        self.listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
-        self.listen_thread.start()
+        # 使用屏幕驱动的内置监听机制
+        self.display.start_listen(self._handle_received_command)
         print("📱 触摸屏命令监听已启动")
 
     def stop_listening(self):
         """停止监听触摸屏命令"""
-        self.is_listening = False
-        if self.listen_thread:
-            self.listen_thread.join(timeout=1)
+        # 停止屏幕驱动的监听
+        self.display.stop_listen()
         print("🛑 触摸屏命令监听已停止")
 
-    def _listen_loop(self):
-        """监听循环"""
-        buffer = b''
-        while self.is_listening:
-            try:
-                with self._lock:
-                    # 检查串口是否有数据可读
-                    if self.display.serial_port.in_waiting > 0:
-                        data = self.display.serial_port.read(self.display.serial_port.in_waiting)
-                    else:
-                        data = b''
-
-                if data:
-                    buffer += data
-                    print(f"📲 触摸屏收到数据: {data.hex()}")
-
-                    # 尝试处理完整的指令（根据结束符 0d0a 分割）
-                    while b'\x0d\x0a' in buffer:
-                        # 寻找以 0d0a 结尾的完整数据包
-                        parts = buffer.split(b'\x0d\x0a', 1)
-
-                        # 假设整个数据包以 55 开头
-                        packet_data = parts[0]
-
-                        # 检查数据包是否以 55 开头（协议头）
-                        if packet_data.startswith(b'\x55'):
-                            # 处理命令（去掉头部的 55）
-                            cmd_payload = packet_data[1:]
-                            self._process_command(cmd_payload)
-                        else:
-                            # 如果不是以 55 开头，可能发生了粘包或数据错乱
-                            print(f"⚠️ 无效数据包头: {packet_data.hex()}")
-
-                        # 保留剩余数据
-                        buffer = parts[1] if len(parts) > 1 else b''
-
-            except Exception as e:
-                print(f"⚠️  触摸屏监听异常：{e}")
-
-            time.sleep(0.05)  # 降低CPU占用
+    def _handle_received_command(self, cmd: bytes):
+        """处理接收到的命令（来自屏幕驱动的回调）"""
+        print(f"📲 触摸屏收到数据: {cmd.hex()}")
+        self._process_command(cmd)
 
     def _process_command(self, command: bytes):
         """处理接收到的命令"""
@@ -209,7 +288,7 @@ class TouchscreenCommandHandler:
         # 如果识别到文本，则将其传递给大模型处理
         if self.recognized_text.strip():
             print("🤖 将语音识别结果交给大模型处理...")
-            llm_result = process_speech_to_llm(self.recognized_text, current_uid)
+            llm_result = clean_llm_response(process_speech_to_llm(self.recognized_text, current_uid))
             if llm_result:
                 print(f"🤖 大模型处理结果: {llm_result}")
                 # 将大模型结果发送到显示屏组件
@@ -227,29 +306,58 @@ class TouchscreenCommandHandler:
     def _speak_llm_result(self, text: str):
         """
         使用TTS朗读大模型返回的文本
-        
+
         Args:
             text: 要朗读的文本
         """
         if not self.tts_enabled:
             print("🔇 TTS功能已禁用，跳过朗读")
             return
-            
+
         if not text or not text.strip():
             print("⚠️ 要朗读的文本为空")
             return
-            
+
         try:
             print(f"🔊 开始TTS朗读: {text}")
             # 在单独的线程中运行TTS，避免阻塞主线程
             tts_thread = threading.Thread(
-                target=self._run_tts, 
+                target=self._run_tts,
                 args=(text,),
                 daemon=True
             )
             tts_thread.start()
             print("✅ TTS朗读任务已启动")
-            
+
+        except Exception as e:
+            print(f"❌ TTS朗读失败: {e}")
+
+    def _speak_analysis_result(self, text: str):
+        """
+        使用TTS朗读分析结果
+
+        Args:
+            text: 要朗读的文本
+        """
+        if not self.tts_enabled:
+            print("🔇 TTS功能已禁用，跳过朗读")
+            return
+
+        if not text or not text.strip():
+            print("⚠️ 要朗读的文本为空")
+            return
+
+        try:
+            print(f"🔊 开始TTS朗读分析结果: {text}")
+            # 在单独的线程中运行TTS，避免阻塞主线程
+            tts_thread = threading.Thread(
+                target=self._run_tts,
+                args=(text,),
+                daemon=True
+            )
+            tts_thread.start()
+            print("✅ TTS朗读任务已启动")
+
         except Exception as e:
             print(f"❌ TTS朗读失败: {e}")
 
@@ -269,18 +377,6 @@ class TouchscreenCommandHandler:
     def _get_current_uid(self) -> str:
         """从显示屏获取当前uid"""
         try:
-            # 从显示组件中获取uid
-            # Note: We can't actually read the value from Nextion display directly
-            # This is a limitation of Nextion protocol - it doesn't support reading component values
-            # Instead, we'll maintain the uid in memory since it was set during NFC login
-            # The uid would have been stored during NFC login in self._on_uid_read method
-            # For now, we'll return the last known uid if available, or None
-            # In a real system, you may want to store the current user's uid in an instance variable
-            # when the NFC card is read, for example in self.current_user_uid
-
-            # Since we don't currently store the current uid in an instance variable,
-            # we'll need to add that functionality. For now, we'll implement a temporary
-            # solution by adding an instance variable to hold the current user's uid
             return getattr(self, 'current_user_uid', None)
         except Exception as e:
             print(f"⚠️ 获取当前uid时发生错误: {e}")
@@ -293,7 +389,6 @@ class TouchscreenCommandHandler:
                 """处理部分识别结果（流式）"""
                 print(f"[流式识别] {text}")
                 # 将部分识别结果显示到串口屏上
-                # 假设串口屏上有名为"partial_text"的文本组件来显示实时文本
                 escaped_text = text.replace('"', '\\"')  # 转义引号
                 self.display.send_nextion_cmd(f'reco_result.txt="{escaped_text}"')
                 self.display.send_nextion_cmd("reco_result.pco=0")
@@ -368,15 +463,97 @@ class TouchscreenCommandHandler:
         self.display.send_nextion_cmd("page 0")
 
     def _handle_menu_command(self):
-        """处理菜单命令"""
-        print("📋 收到菜单命令")
-        self.display.send_nextion_cmd("page menu")
+        """处理拍照分析菜品命令"""
+        print("📸 收到拍照分析菜品命令")
+        
+        # 清空日志
+        self.clear_dish_enter_log()
+        
+        # 发送带时间戳的英文日志到串口屏
+        self._append_dish_enter_log("Starting dish analysis...")
 
+        try:
+            # 调用dish_enter.py中的功能进行拍照
+            print("📷 Capturing image...")
+            self._append_dish_enter_log("Capturing image...")
+
+            result = capture_and_analyze_dishes()
+
+            if result and result.get('dishes'):
+                # 拍摄成功
+                self._append_dish_enter_log("Image captured successfully!")
+
+                # 开始大模型分析
+                self._append_dish_enter_log("Starting AI analysis...")
+
+                dish_count = len(result.get('dishes', []))
+
+                # 显示具体的菜名
+                dish_names = [dish.get('name', 'Unknown') for dish in result.get('dishes', [])]
+                dish_names_str = ", ".join(dish_names)
+                
+                # 直接显示菜名，不做截断处理
+                self._append_dish_enter_log(f"Found {dish_count} dishes:")
+                for dish_name in dish_names:
+                    self._append_dish_enter_log(f"- {dish_name}")
+
+                success_msg = f"Analysis complete! Found {dish_count} dishes."
+                print(f"🎉 {success_msg}")
+
+                # 发送成功消息到串口屏
+                self._append_dish_enter_log(success_msg)
+
+            else:
+                error_msg = "Analysis failed or no dishes found."
+                print(f"❌ {error_msg}")
+
+                # 发送错误消息到串口屏
+                self._append_dish_enter_log(error_msg)
+
+        except Exception as e:
+            error_msg = f"Error during dish analysis: {str(e)}"
+            print(f"❌ {error_msg}")
+
+            # 发送错误消息到串口屏
+            self._append_dish_enter_log(error_msg)
+            
     def _handle_analyze_command(self):
         """处理分析命令"""
         print("🔍 收到分析命令")
-        # 可以触发拍照分析流程
-        self.display.send_nextion_cmd("page analyze")
+
+        # 导入plate_analyze模块
+        from pipeline.plate_analyze import capture_and_identify_dishes_for_user
+
+        # 获取当前用户的UID，如果没有则传入None
+        current_uid = self.current_user_uid or "Anonymous"
+        self.display.send_nextion_cmd('identify_ret.txt="Capturing image..."')
+
+        # 调用plate_analyze模块进行拍摄和分析
+        try:
+            print(f"📸 开始菜品拍照和分析，用户ID: {current_uid}")
+
+            # 调用plate_analyze模块的函数
+            result = capture_and_identify_dishes_for_user(current_uid) if current_uid else capture_and_identify_dishes_for_user(None)
+
+            if result:
+                print(f"✅ 分析结果: {result}")
+
+                # 将结果发送到串口屏的identify_ret文本框
+                escaped_result = result.replace('"', '\\"')  # 转义引号
+                self.display.send_nextion_cmd(f'identify_ret.txt="{escaped_result}"')
+
+                # 使用TTS朗读结果（类似于菜品推荐逻辑）
+                self._speak_analysis_result(result)
+            else:
+                print("⚠️ 分析结果为空")
+                self.display.send_nextion_cmd('identify_ret.txt="分析失败，请重试"')
+
+        except Exception as e:
+            print(f"❌ 菜品分析过程中出现错误: {e}")
+            error_msg = "菜品分析失败，请重试"
+            self.display.send_nextion_cmd(f'identify_ret.txt="{error_msg}"')
+            # 使用TTS朗读错误信息
+            self._speak_analysis_result(error_msg)
 
     def _handle_rfid_page_command(self):
         """处理进入刷卡页面命令"""
