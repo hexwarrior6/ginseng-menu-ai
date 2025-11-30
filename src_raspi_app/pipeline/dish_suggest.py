@@ -9,6 +9,7 @@ import re
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, date
+import pytz
 from services.llm_service import ask_llm
 from database.db_connection import get_db_connection
 
@@ -100,23 +101,27 @@ def _get_today_menu() -> List[Dict[str, Any]]:
     try:
         db = get_db_connection()
         dishes_collection = db['dishes']
-        
-        # 获取今天的日期（不包含时间部分）
-        today = datetime.now().date()
-        start_of_day = datetime.combine(today, datetime.min.time())
-        end_of_day = datetime.combine(today, datetime.max.time())
-        
-        # 查询当天的所有菜单
+
+        # 使用时区感知的当前时间
+        local_tz = pytz.timezone('Asia/Shanghai')
+        now = datetime.now(local_tz)
+        today = now.date()
+
+        # 获取当天的开始和结束时间（时区感知）
+        start_of_day = local_tz.localize(datetime.combine(today, datetime.min.time()))
+        end_of_day = local_tz.localize(datetime.combine(today, datetime.max.time()))
+
+        # 查询当天的所有菜单，转换为UTC时间进行查询
         today_menu = list(dishes_collection.find({
             "timestamp": {
-                "$gte": start_of_day,
-                "$lte": end_of_day
+                "$gte": start_of_day.astimezone(pytz.UTC),
+                "$lte": end_of_day.astimezone(pytz.UTC)
             }
         }))
-        
+
         logging.info(f"获取到 {len(today_menu)} 个今日菜品")
         return today_menu
-        
+
     except Exception as e:
         logging.error(f"获取当天菜单时发生错误: {e}")
         return []
@@ -295,9 +300,13 @@ def _update_user_preferences(uid: str, preferences_data: Dict[str, Any]) -> bool
                             current_values.append(value)
                     current_preferences[key] = current_values
             
+            # 使用时区感知的当前时间
+            local_tz = pytz.timezone('Asia/Shanghai')
+            current_time = datetime.now(local_tz)
+
             update_data = {
                 "preferences": current_preferences,
-                "last_active": datetime.now()
+                "last_active": current_time
             }
             
             result = users_collection.update_one(
@@ -313,14 +322,18 @@ def _update_user_preferences(uid: str, preferences_data: Dict[str, Any]) -> bool
                 logging.info(f"ℹ️ 用户 {uid} 偏好无变化或已是最新")
                 
         else:
+            # 使用时区感知的当前时间
+            local_tz = pytz.timezone('Asia/Shanghai')
+            current_time = datetime.now(local_tz)
+
             # 创建新用户 - 按照示例的文档结构
             user_data = {
                 "uid": uid,
                 "preferences": preferences_update,
-                "created_at": datetime.now(),
-                "last_active": datetime.now()
+                "created_at": current_time,
+                "last_active": current_time
             }
-            
+
             result = users_collection.insert_one(user_data)
             success = result.inserted_id is not None
             

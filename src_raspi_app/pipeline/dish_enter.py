@@ -3,6 +3,7 @@ import base64
 import json
 import re
 from datetime import datetime, timedelta
+import pytz
 from bson import ObjectId
 from hardware.camera.raspberry_camera import capture_image
 from zhipuai import ZhipuAI
@@ -121,13 +122,17 @@ def check_existing_dish(name):
         db = get_db_connection()
         dishes = db["dishes"]
 
-        now = datetime.now()
-        start_of_day = datetime(now.year, now.month, now.day)
+        # 使用时区感知的当前时间
+        local_tz = pytz.timezone('Asia/Shanghai')
+        now = datetime.now(local_tz)
+
+        # 获取当天的开始和结束时间（时区感知）
+        start_of_day = local_tz.localize(datetime(now.year, now.month, now.day))
         end_of_day = start_of_day + timedelta(days=1)
 
         result = dishes.find_one({
             "name": name,
-            "timestamp": {"$gte": start_of_day, "$lt": end_of_day}
+            "timestamp": {"$gte": start_of_day.astimezone(pytz.UTC), "$lt": end_of_day.astimezone(pytz.UTC)}
         })
 
         return result["_id"] if result else None
@@ -143,7 +148,10 @@ def save_dishes_to_database(dishes_data):
 
         saved_ids = []
         dishes_list = dishes_data.get('dishes', [])
-        now = datetime.now()
+
+        # 使用时区感知的当前时间
+        local_tz = pytz.timezone('Asia/Shanghai')
+        now = datetime.now(local_tz)
 
         for dish in dishes_list:
             name = dish.get('name')
@@ -153,7 +161,7 @@ def save_dishes_to_database(dishes_data):
             record = {
                 "name": name,
                 "category": dish.get("category"),
-                "timestamp": now,
+                "timestamp": now,  # 这里会被db_connection.py中的convert_datetime_to_utc函数转换为UTC
                 "calories": int(float(dish.get("calories", 0))),
                 "nutrition": {
                     "protein_g": float(dish.get("nutrition", {}).get("protein_g", 0)),
@@ -168,10 +176,14 @@ def save_dishes_to_database(dishes_data):
                 dishes_col.delete_one({"_id": ObjectId(existing_id)})
                 print(f"  🔄 Deleted old dish ID {existing_id}")
 
-            # 插入新记录
-            insert_result = dishes_col.insert_one(record)
-            print(f"  ✅ Inserted new dish '{name}' with ID {insert_result.inserted_id}")
-            saved_ids.append(str(insert_result.inserted_id))
+            # 插入新记录 - 使用封装的insert_data函数，会自动处理时区转换
+            from database.db_connection import insert_data
+            result_id = insert_data("dishes", record)
+            if result_id:
+                print(f"  ✅ Inserted new dish '{name}' with ID {result_id}")
+                saved_ids.append(result_id)
+            else:
+                print(f"  ❌ Failed to insert dish '{name}'")
 
         return saved_ids
 

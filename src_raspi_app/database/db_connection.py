@@ -9,6 +9,8 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, OperationFailure
 import logging
 from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+import pytz
 
 # Load environment variables and configuration
 load_dotenv()
@@ -28,6 +30,24 @@ except ImportError:
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+def convert_datetime_to_utc(data):
+    """
+    Recursively convert datetime objects in data to UTC timezone
+    """
+    if isinstance(data, dict):
+        return {key: convert_datetime_to_utc(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [convert_datetime_to_utc(item) for item in data]
+    elif isinstance(data, datetime):
+        if data.tzinfo is None:
+            # Assume local timezone is Asia/Shanghai (UTC+8) if no timezone info
+            local_tz = pytz.timezone('Asia/Shanghai')
+            data = local_tz.localize(data)
+        # Convert to UTC
+        return data.astimezone(timezone.utc)
+    else:
+        return data
 
 class DatabaseConnection:
     """
@@ -93,24 +113,27 @@ def get_db_connection():
 def insert_data(collection_name: str, data: Dict[str, Any]) -> Optional[str]:
     """
     Insert data into specified collection
-    
+
     Args:
         collection_name (str): Name of the collection to insert data into
         data (dict): Data to be inserted
-        
+
     Returns:
         str: Inserted document ID, or None if insertion failed
     """
     try:
         db = get_db_connection()
         collection = db[collection_name]
-        
+
+        # Convert datetime objects to UTC before inserting
+        data_with_converted_dates = convert_datetime_to_utc(data)
+
         # Insert the data
-        result = collection.insert_one(data)
-        
+        result = collection.insert_one(data_with_converted_dates)
+
         logger.info(f"Data inserted successfully into collection '{collection_name}' with ID: {result.inserted_id}")
         return str(result.inserted_id)
-        
+
     except OperationFailure as e:
         logger.error(f"Database operation failed: {e}")
         return None
@@ -122,25 +145,28 @@ def insert_data(collection_name: str, data: Dict[str, Any]) -> Optional[str]:
 def insert_many_data(collection_name: str, data_list: list) -> Optional[list]:
     """
     Insert multiple documents into specified collection
-    
+
     Args:
         collection_name (str): Name of the collection to insert data into
         data_list (list): List of data dictionaries to be inserted
-        
+
     Returns:
         list: List of inserted document IDs, or None if insertion failed
     """
     try:
         db = get_db_connection()
         collection = db[collection_name]
-        
+
+        # Convert datetime objects to UTC before inserting
+        converted_data_list = [convert_datetime_to_utc(data) for data in data_list]
+
         # Insert multiple documents
-        result = collection.insert_many(data_list)
-        
+        result = collection.insert_many(converted_data_list)
+
         inserted_ids = [str(id) for id in result.inserted_ids]
         logger.info(f"Multiple data inserted successfully into collection '{collection_name}', count: {len(inserted_ids)}")
         return inserted_ids
-        
+
     except OperationFailure as e:
         logger.error(f"Database operation failed: {e}")
         return None
