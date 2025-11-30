@@ -9,33 +9,21 @@ export class Dish {
   name: string;
 
   @Prop()
-  description?: string;
-
-  @Prop()
   category?: string;
 
-  @Prop([String])
-  ingredients?: string[];
+  @Prop()
+  timestamp?: Date;
+
+  @Prop()
+  calories?: number;
 
   @Prop({ type: Object })
-  nutritionalInfo?: {
-    calories?: number;
-    protein?: number;
-    carbs?: number;
-    fat?: number;
+  nutrition?: {
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    fiber_g?: number;
   };
-
-  @Prop()
-  image?: string;
-
-  @Prop({ default: true })
-  isAvailable?: boolean;
-
-  @Prop()
-  preparationTime?: number;
-
-  @Prop({ type: Object })
-  additionalInfo?: any;
 }
 
 export const DishSchema = SchemaFactory.createForClass(Dish);

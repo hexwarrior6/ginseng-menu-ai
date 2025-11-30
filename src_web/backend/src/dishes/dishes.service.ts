@@ -16,12 +16,18 @@ export class DishesService {
   }
 
   async create(createDishDto: any): Promise<Dish> {
-    const createdDish = new this.dishModel(createDishDto);
+    const createdDish = new this.dishModel({
+      ...createDishDto,
+      timestamp: createDishDto.timestamp || new Date(),
+    });
     return createdDish.save();
   }
 
   async update(id: string, updateDishDto: any): Promise<Dish | null> {
-    return this.dishModel.findByIdAndUpdate(id, updateDishDto, { new: true }).exec();
+    return this.dishModel.findByIdAndUpdate(id, {
+      ...updateDishDto,
+      timestamp: updateDishDto.timestamp || new Date(),
+    }, { new: true }).exec();
   }
 
   async remove(id: string): Promise<any> {

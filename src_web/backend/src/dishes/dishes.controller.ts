@@ -15,4 +15,19 @@ export class DishesController {
   async findOne(@Param('id') id: string): Promise<Dish | null> {
     return this.dishesService.findOne(id);
   }
+
+  @Post()
+  async create(@Body() createDishDto: any): Promise<Dish> {
+    return this.dishesService.create(createDishDto);
+  }
+
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() updateDishDto: any): Promise<Dish | null> {
+    return this.dishesService.update(id, updateDishDto);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string): Promise<any> {
+    return this.dishesService.remove(id);
+  }
 }
