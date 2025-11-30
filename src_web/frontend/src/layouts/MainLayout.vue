@@ -16,6 +16,9 @@
         <a-menu-item key="dishes">
           <router-link to="/dishes">Dishes</router-link>
         </a-menu-item>
+        <a-menu-item key="user-dishes">
+          <router-link to="/user-dishes">User Dishes</router-link>
+        </a-menu-item>
         <a-menu-item key="logs">
           <router-link to="/logs">Interaction Logs</router-link>
         </a-menu-item>
@@ -51,6 +54,8 @@ export default {
         this.selectedKeys = ['dishes'];
       } else if (to.path.startsWith('/logs')) {
         this.selectedKeys = ['logs'];
+      } else if (to.path.startsWith('/user-dishes')) {
+        this.selectedKeys = ['user-dishes'];
       }
     }
   },
@@ -64,6 +69,8 @@ export default {
       this.selectedKeys = ['dishes'];
     } else if (this.$route.path.startsWith('/logs')) {
       this.selectedKeys = ['logs'];
+    } else if (this.$route.path.startsWith('/user-dishes')) {
+      this.selectedKeys = ['user-dishes'];
     }
   }
 };

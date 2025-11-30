@@ -53,6 +53,15 @@ export const dishApi = {
   delete: (id) => apiClient.delete(`/dishes/${id}`),
 };
 
+export const userDishApi = {
+  getAll: () => apiClient.get('/user-dishes'),
+  getByUid: (uid) => apiClient.get(`/user-dishes/uid/${uid}`),
+  getById: (id) => apiClient.get(`/user-dishes/${id}`),
+  create: (data) => apiClient.post('/user-dishes', data),
+  delete: (id) => apiClient.delete(`/user-dishes/${id}`),
+  deleteByUidAndDishName: (uid, dishName) => apiClient.delete(`/user-dishes/uid/${uid}/dish/${dishName}`),
+};
+
 export const logApi = {
   getAll: () => apiClient.get('/interaction-logs'),
   getById: (id) => apiClient.get(`/interaction-logs/${id}`),

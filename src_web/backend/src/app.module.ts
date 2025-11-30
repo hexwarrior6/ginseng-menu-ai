@@ -7,6 +7,7 @@ import { DishesModule } from './dishes/dishes.module';
 import { UsersModule } from './users/users.module';
 import { InteractionLogsModule } from './interaction-logs/interaction-logs.module';
 import { DataInsightModule } from './data-insight/data-insight.module';
+import { UserDishesModule } from './user-dishes/user-dishes.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DataInsightModule } from './data-insight/data-insight.module';
     UsersModule,
     InteractionLogsModule,
     DataInsightModule,
+    UserDishesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
