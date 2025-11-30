@@ -1,7 +1,7 @@
 <template>
   <a-layout style="min-height: 100vh">
     <a-layout-header class="header" style="background: #fff; padding: 0; display: flex; align-items: center;">
-      <div class="logo" style="padding: 0 20px; font-size: 18px; font-weight: bold;">Canteen Admin Panel</div>
+      <div class="logo" style="padding: 0 20px; font-size: 18px; font-weight: bold;">Ginseng Menu AI Admin Panel</div>
       <a-menu
         v-model:selectedKeys="selectedKeys"
         mode="horizontal"
@@ -30,7 +30,7 @@
       </div>
     </a-layout-content>
     <a-layout-footer style="text-align: center;">
-      Canteen Management System ©{{ new Date().getFullYear() }}
+      Ginseng Menu AI Admin Panel ©{{ new Date().getFullYear() }}
     </a-layout-footer>
   </a-layout>
 </template>
