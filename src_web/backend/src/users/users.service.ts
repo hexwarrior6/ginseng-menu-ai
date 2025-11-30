@@ -15,13 +15,32 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
+  async findByUid(uid: string): Promise<User | null> {
+    return this.userModel.findOne({ uid }).exec();
+  }
+
   async create(createUserDto: any): Promise<User> {
-    const createdUser = new this.userModel(createUserDto);
+    const createdUser = new this.userModel({
+      ...createUserDto,
+      created_at: new Date(),
+      last_active: new Date(),
+    });
     return createdUser.save();
   }
 
   async update(id: string, updateUserDto: any): Promise<User | null> {
-    return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec();
+    return this.userModel.findByIdAndUpdate(id, {
+      ...updateUserDto,
+      last_active: new Date()
+    }, { new: true }).exec();
+  }
+
+  async updateByUid(uid: string, updateUserDto: any): Promise<User | null> {
+    return this.userModel.findOneAndUpdate(
+      { uid },
+      { ...updateUserDto, last_active: new Date() },
+      { new: true }
+    ).exec();
   }
 
   async remove(id: string): Promise<any> {

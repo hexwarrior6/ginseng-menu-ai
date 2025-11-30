@@ -33,7 +33,7 @@
           >
             <template #bodyCell="{ column, text, record }">
               <template v-if="column.dataIndex === 'userId'">
-                <a-tag color="blue">{{ record.userId?.name || 'Unknown User' }}</a-tag>
+                <a-tag color="blue">{{ record.userId?.name || record.userId?.uid || 'Unknown User' }}</a-tag>
               </template>
               
               <template v-else-if="column.dataIndex === 'action'">
@@ -88,8 +88,8 @@
     >
       <a-descriptions v-if="selectedLog" :column="1" bordered>
         <a-descriptions-item label="ID">{{ selectedLog._id }}</a-descriptions-item>
-        <a-descriptions-item label="User">{{ selectedLog.userId?.name || 'Unknown User' }}</a-descriptions-item>
-        <a-descriptions-item label="User Email">{{ selectedLog.userId?.email || 'N/A' }}</a-descriptions-item>
+        <a-descriptions-item label="User">{{ selectedLog.userId?.name || selectedLog.userId?.uid || 'Unknown User' }}</a-descriptions-item>
+        <a-descriptions-item label="User UID">{{ selectedLog.userId?.uid || 'N/A' }}</a-descriptions-item>
         <a-descriptions-item label="Action">{{ selectedLog.action }}</a-descriptions-item>
         <a-descriptions-item label="Action Type">{{ selectedLog.actionType }}</a-descriptions-item>
         <a-descriptions-item label="Dish Name">{{ selectedLog.dishName || 'N/A' }}</a-descriptions-item>

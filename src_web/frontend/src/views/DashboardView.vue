@@ -61,11 +61,11 @@
                   :description="`${item.action} - ${new Date(item.createdAt).toLocaleString()}`"
                 >
                   <template #title>
-                    <a>{{ item.userId?.name || 'Unknown User' }}</a>
+                    <a>{{ item.userId?.name || item.userId?.uid || 'Unknown User' }}</a>
                   </template>
                   <template #avatar>
                     <a-avatar :style="{ backgroundColor: '#1890ff' }">
-                      {{ item.userId?.name?.charAt(0) || '?' }}
+                      {{ (item.userId?.name || item.userId?.uid)?.charAt(0) || '?' }}
                     </a-avatar>
                   </template>
                 </a-list-item-meta>
