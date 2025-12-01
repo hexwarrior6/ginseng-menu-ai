@@ -11,7 +11,7 @@ charset-normalizer==3.4.4
 dnspython==2.8.0
 edge-tts==7.2.3
 frozenlist==1.8.0
--e git+https://gitee.com/HexWarrior6/ginseng-menu-ai.git@517e1319bfa71c21558a561c9171979c8dad57fb#egg=ginseng_menu_ai_raspi_app&subdirectory=src_raspi_app
+-e git+https://gitee.com/HexWarrior6/ginseng-menu-ai.git@435d31319f9625e23ceb876c76c35c84ee7066d4#egg=ginseng_menu_ai_raspi_app&subdirectory=src_raspi_app
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -27,6 +27,7 @@ PyJWT==2.8.0
 pymongo==4.15.4
 pyserial==3.5
 python-dotenv==1.2.1
+pytz==2025.2
 PyYAML==6.0.3
 requests==2.32.5
 RPi.GPIO==0.7.1

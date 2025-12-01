@@ -3,6 +3,7 @@ import base64
 import json
 import re
 from datetime import datetime, timedelta
+import pytz
 from bson import ObjectId
 from hardware.camera.raspberry_camera import capture_image
 from zhipuai import ZhipuAI
@@ -69,17 +70,17 @@ def save_user_dish_record(uid, dish_name, timestamp):
     try:
         db = get_db_connection()
         user_dishes_col = db["user_dishes"]
-        
+
         record = {
             "uid": uid,
             "dish_name": dish_name,
             "timestamp": timestamp
         }
-        
+
         result = user_dishes_col.insert_one(record)
         print(f"✅ Saved user dish record: {uid} - {dish_name}")
         return str(result.inserted_id)
-        
+
     except Exception as e:
         print(f"❌ Error saving user dish record: {e}")
         return None
@@ -129,8 +130,10 @@ def process_ai_response(raw_response, uid):
     # 保存到数据库
     if json_data and 'identified_dishes' in json_data:
         identified_dishes = json_data['identified_dishes']
-        current_time = datetime.now()
-        
+        # 使用时区感知的当前时间
+        local_tz = pytz.timezone('Asia/Shanghai')
+        current_time = datetime.now(local_tz)
+
         saved_count = 0
         for dish in identified_dishes:
             dish_name = dish.get('name')
@@ -263,8 +266,10 @@ IMPORTANT:
         
         # 5. 保存菜品记录到数据库
         identified_dishes = analysis_result['dishes']
-        current_time = datetime.now()
-        
+        # 使用时区感知的当前时间
+        local_tz = pytz.timezone('Asia/Shanghai')
+        current_time = datetime.now(local_tz)
+
         saved_count = 0
         for dish in identified_dishes:
             dish_name = dish.get('name')
