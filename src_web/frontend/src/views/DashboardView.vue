@@ -75,13 +75,11 @@
         </a-card>
       </a-col>
       <a-col :span="12">
-        <a-card title="Popular Dishes">
-          <template #extra>
-            <a-radio-group v-model:value="activeTabKey" button-style="solid" size="small" @change="onTabChange($event.target.value)">
-              <a-radio-button value="today">Today</a-radio-button>
-              <a-radio-button value="history">History</a-radio-button>
-            </a-radio-group>
-          </template>
+        <a-card 
+          :tab-list="tabList"
+          :active-tab-key="activeTabKey"
+          @tabChange="onTabChange"
+        >
           <a-list
             item-layout="horizontal"
             :data-source="popularDishes"
@@ -123,6 +121,16 @@ export default {
       recentActivity: [],
       popularDishes: [],
       activeTabKey: 'today',
+      tabList: [
+        {
+          key: 'today',
+          tab: 'Today',
+        },
+        {
+          key: 'history',
+          tab: 'History',
+        },
+      ],
     };
   },
   async mounted() {
