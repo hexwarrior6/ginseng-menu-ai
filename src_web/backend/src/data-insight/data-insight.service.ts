@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { User } from '../models/user.model';
 import { Dish } from '../models/dish.model';
 import { InteractionLog } from '../models/interaction-log.model';
+import { UserDish } from '../user-dishes/user-dish.model';
 
 @Injectable()
 export class DataInsightService {
@@ -11,7 +12,8 @@ export class DataInsightService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Dish.name) private dishModel: Model<Dish>,
     @InjectModel(InteractionLog.name) private interactionLogModel: Model<InteractionLog>,
-  ) {}
+    @InjectModel(UserDish.name) private userDishModel: Model<UserDish>,
+  ) { }
 
   async getDashboardStats() {
     const totalUsers = await this.userModel.countDocuments();
@@ -25,23 +27,35 @@ export class DataInsightService {
 
     // Count dishes created today (daily dishes) instead of total dishes
     const dailyDishes = await this.dishModel.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow }
+      $or: [
+        { timestamp: { $gte: today, $lt: tomorrow } },
+        { createdAt: { $gte: today, $lt: tomorrow } }
+      ]
     });
 
+    // For daily interactions, use timestamp field
     const dailyInteractions = await this.interactionLogModel.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow }
+      timestamp: { $gte: today, $lt: tomorrow }
     });
 
-    const dailyUsers = await this.interactionLogModel.distinct('userId', {
-      createdAt: { $gte: today, $lt: tomorrow }
+    // For dailyUsers, we need to check both userId field and extra.uid
+    const dailyUsersFromUserId = await this.interactionLogModel.distinct('userId', {
+      timestamp: { $gte: today, $lt: tomorrow }
     });
+
+    const dailyUsersFromExtra = await this.interactionLogModel.distinct('extra.uid', {
+      timestamp: { $gte: today, $lt: tomorrow }
+    });
+
+    // Combine both arrays and remove duplicates
+    const allDailyUsers = [...new Set([...dailyUsersFromUserId, ...dailyUsersFromExtra])];
 
     return {
       totalUsers,
       totalDishes: dailyDishes, // Changed to return daily dishes instead of total dishes
       totalInteractions,
       dailyInteractions,
-      dailyActiveUsers: dailyUsers.length,
+      dailyActiveUsers: allDailyUsers.length,
     };
   }
 
@@ -50,17 +64,62 @@ export class DataInsightService {
     return user?.preferences || [];
   }
 
-  async getPopularDishes(limit: number = 10) {
-    // This would aggregate interaction logs to find popular dishes
-    // For now, returning all dishes as a placeholder
-    return await this.dishModel.find({ isAvailable: true }).limit(limit);
+  async getPopularDishes(
+    limit: number = 10,
+    timeRange: string = 'history',
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const pipeline: any[] = [];
+
+    if (timeRange === 'today' && startDate && endDate) {
+      pipeline.push({
+        $match: {
+          timestamp: {
+            $gte: new Date(startDate),
+            $lt: new Date(endDate),
+          },
+        },
+      });
+    } else if (timeRange === 'today') {
+      // Fallback to server time if no dates provided (backward compatibility)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      pipeline.push({
+        $match: {
+          timestamp: { $gte: today, $lt: tomorrow },
+        },
+      });
+    }
+
+    pipeline.push(
+      {
+        $group: {
+          _id: '$dish_name',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 0,
+          name: '$_id',
+          count: 1
+        }
+      }
+    );
+
+    return await this.userDishModel.aggregate(pipeline);
   }
 
   async getRecentActivity(limit: number = 20) {
     return await this.interactionLogModel
       .find()
-      .populate('userId', 'name email')
-      .sort({ createdAt: -1 })
+      .sort({ timestamp: -1 })  // Changed from createdAt to timestamp
       .limit(limit);
   }
 }

@@ -72,6 +72,11 @@ export const logApi = {
 export const dataInsightApi = {
   getStats: () => apiClient.get('/data-insight/dashboard-stats'),
   getUserPreferences: (userId) => apiClient.get(`/data-insight/user-preferences/${userId}`),
-  getPopularDishes: (limit = 10) => apiClient.get(`/data-insight/popular-dishes?limit=${limit}`),
+  getPopularDishes: (limit = 10, timeRange = 'history', startDate = null, endDate = null) => {
+    let url = `/data-insight/popular-dishes?limit=${limit}&timeRange=${timeRange}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    return apiClient.get(url);
+  },
   getRecentActivity: (limit = 20) => apiClient.get(`/data-insight/recent-activity?limit=${limit}`),
 };

@@ -58,14 +58,14 @@
             <template #renderItem="{ item }">
               <a-list-item>
                 <a-list-item-meta
-                  :description="`${item.action} - ${new Date(item.createdAt).toLocaleString()}`"
+                  :description="`${getActionValue(item)} - ${new Date(item.timestamp).toLocaleString()}`"
                 >
                   <template #title>
-                    <a>{{ item.userId?.name || item.userId?.uid || 'Unknown User' }}</a>
+                    <a>{{ getUserInfo(item) }}</a>
                   </template>
                   <template #avatar>
                     <a-avatar :style="{ backgroundColor: '#1890ff' }">
-                      {{ (item.userId?.name || item.userId?.uid)?.charAt(0) || '?' }}
+                      {{ getUserInitials(item) }}
                     </a-avatar>
                   </template>
                 </a-list-item-meta>
@@ -76,20 +76,30 @@
       </a-col>
       <a-col :span="12">
         <a-card title="Popular Dishes">
+          <template #extra>
+            <a-tabs 
+              v-model:activeKey="activeTabKey" 
+              @change="onTabChange" 
+              size="small" 
+              :tabBarStyle="{ marginBottom: 0, borderBottom: 'none' }"
+            >
+              <a-tab-pane key="today" tab="Today" />
+              <a-tab-pane key="history" tab="History" />
+            </a-tabs>
+          </template>
           <a-list
             item-layout="horizontal"
             :data-source="popularDishes"
           >
-            <template #renderItem="{ item }">
+            <template #renderItem="{ item, index }">
               <a-list-item>
                 <a-list-item-meta
                   :title="item.name"
-                  :description="item.description || 'No description'"
+                  :description="`Ordered ${item.count} times`"
                 >
                   <template #avatar>
-                    <a-avatar shape="square" v-if="item.image" :src="item.image" />
-                    <a-avatar v-else :style="{ backgroundColor: '#87d068' }">
-                      <icon-appstore />
+                    <a-avatar :style="{ backgroundColor: index < 3 ? '#ff4d4f' : '#1890ff' }">
+                      {{ index + 1 }}
                     </a-avatar>
                   </template>
                 </a-list-item-meta>
@@ -116,13 +126,47 @@ export default {
         dailyActiveUsers: 0,
       },
       recentActivity: [],
-      popularDishes: []
+      popularDishes: [],
+      activeTabKey: 'today',
+      tabList: [
+        {
+          key: 'today',
+          tab: 'Today',
+        },
+        {
+          key: 'history',
+          tab: 'History',
+        },
+      ],
     };
   },
   async mounted() {
     await this.loadDashboardData();
   },
   methods: {
+    async fetchPopularDishes() {
+      try {
+        let startDate = null;
+        let endDate = null;
+
+        if (this.activeTabKey === 'today') {
+          const now = new Date();
+          const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+          startDate = start.toISOString();
+          endDate = end.toISOString();
+        }
+
+        const dishesResponse = await dataInsightApi.getPopularDishes(5, this.activeTabKey, startDate, endDate);
+        this.popularDishes = dishesResponse.data;
+      } catch (error) {
+        console.error('Error fetching popular dishes:', error);
+      }
+    },
+    onTabChange(key) {
+      this.activeTabKey = key;
+      this.fetchPopularDishes();
+    },
     async loadDashboardData() {
       try {
         // Fetch dashboard stats
@@ -134,14 +178,41 @@ export default {
         this.recentActivity = activityResponse.data;
 
         // Fetch popular dishes
-        const dishesResponse = await dataInsightApi.getPopularDishes();
-        this.popularDishes = dishesResponse.data;
+        await this.fetchPopularDishes();
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         // Show error notification to user
         this.$message?.error('Failed to load dashboard data');
       }
+    },
+    getUserInfo(item) {
+      // Try to get user info from different possible fields
+      if (item.userId?.name) return item.userId.name;
+      if (item.userId?.uid) return item.userId.uid;
+      if (item.extra?.uid) return item.extra.uid;
+      if (item.userId) return item.userId; // In case it's just a UID string
+      return 'Unknown User';
+    },
+    getUserInitials(item) {
+      const userInfo = this.getUserInfo(item);
+      if (userInfo && userInfo !== 'Unknown User') {
+        return userInfo.charAt(0).toUpperCase();
+      }
+      return '?';
+    },
+    getActionValue(item) {
+      // Try to get action from different possible fields
+      if (item.action) return item.action;
+      if (item.extra?.action) return item.extra.action;
+      return 'N/A';
     }
   }
 };
 </script>
+
+<style scoped>
+/* Hide the 'more' overflow menu in tabs */
+:deep(.ant-tabs-nav-more) {
+  display: none !important;
+}
+</style>

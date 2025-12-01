@@ -3,7 +3,7 @@ import { DataInsightService } from './data-insight.service';
 
 @Controller('data-insight')
 export class DataInsightController {
-  constructor(private readonly dataInsightService: DataInsightService) {}
+  constructor(private readonly dataInsightService: DataInsightService) { }
 
   @Get('dashboard-stats')
   async getDashboardStats() {
@@ -16,9 +16,14 @@ export class DataInsightController {
   }
 
   @Get('popular-dishes')
-  async getPopularDishes(@Query('limit') limit?: string) {
+  async getPopularDishes(
+    @Query('limit') limit?: string,
+    @Query('timeRange') timeRange?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    return this.dataInsightService.getPopularDishes(parsedLimit);
+    return this.dataInsightService.getPopularDishes(parsedLimit, timeRange, startDate, endDate);
   }
 
   @Get('recent-activity')

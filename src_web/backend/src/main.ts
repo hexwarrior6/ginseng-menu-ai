@@ -17,6 +17,7 @@ async function bootstrap() {
       'http://localhost:4173',  // Vite build server port
       'https://ginseng-menu-ai.vercel.app',
       'https://ginseng-menu-ai.hexwarrior6.top',
+      'https://ginseng-menu-ai-git-develop-hexwarrior6s-projects.vercel.app',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,

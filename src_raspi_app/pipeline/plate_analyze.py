@@ -12,6 +12,7 @@ from zhipuai import ZhipuAI
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from database import insert_data, get_db_connection
+from utils.user_interaction_logger import interaction_logger
 
 ZHIPUAI_API_KEY = "e62abd4ebbba488ea4a96771929b6c6d.41RwSM4Nd0Y92AEN"
 IMG_DIR = "src_raspi_app/temp/captured_dish"
@@ -164,16 +165,30 @@ def extract_dish_names_from_text(text):
 
 def capture_and_identify_dishes_for_user(uid):
     """为用户拍照识别菜品并保存记录"""
-    
+
+    # Log the start of user dish identification
+    interaction_logger.log_user_action(uid, "user_dish_identification_start", "plate_analyze", {
+        "process": "user_dish_identification"
+    })
+
     # 1. 调用相机拍照
     print("Starting camera capture...")
     result = capture_image()
-    
+
     if not result:
         print("Photo capture failed!")
+        # Log the failure
+        interaction_logger.log_user_action(uid, "user_dish_capture_failed", "plate_analyze", {
+            "error": "Camera capture failed"
+        })
         return "抱歉，拍照失败，请重试。"
-    
+
     print(f"Photo captured successfully! File saved at: {result}")
+
+    # Log the successful photo capture
+    interaction_logger.log_user_action(uid, "user_dish_capture_success", "plate_analyze", {
+        "image_path": result
+    })
     
     # 2. 分析图片
     client = ZhipuAI(api_key=ZHIPUAI_API_KEY)
@@ -248,22 +263,62 @@ IMPORTANT:
         print("RAW RESPONSE:")
         print(result_text)
         print("=" * 50)
-        
+
+        # Log the AI response
+        interaction_logger.log_pipeline_operation(
+            uid,
+            "plate_analyze",
+            "ai_response_received",
+            {"image_path": result},
+            {"raw_response_length": len(result_text)},
+            success=True
+        )
+
         # 3. 提取和解析JSON数据
         analysis_result = extract_json_from_text(result_text)
-        
+
         if analysis_result is None:
             print("❌ Failed to extract JSON from response")
+            # Log the failure to extract JSON
+            interaction_logger.log_pipeline_operation(
+                uid,
+                "plate_analyze",
+                "json_extraction_failed",
+                {"raw_response_length": len(result_text)},
+                success=False
+            )
+
             # 如果JSON解析失败，尝试从原始文本中处理
             user_response = process_ai_response(result_text, uid)
+
+            # Log the fallback processing
+            interaction_logger.log_pipeline_operation(
+                uid,
+                "plate_analyze",
+                "fallback_processing_completed",
+                {"raw_response_length": len(result_text)},
+                {"user_response_length": len(user_response) if user_response else 0},
+                success=True
+            )
+
             return user_response
         
         # 4. 验证数据结构
         if 'user_response' not in analysis_result or 'dishes' not in analysis_result:
             print("❌ Invalid JSON structure")
+            # Log the invalid structure
+            interaction_logger.log_pipeline_operation(
+                uid,
+                "plate_analyze",
+                "invalid_json_structure",
+                {"raw_response_length": len(result_text)},
+                {"analysis_result_keys": list(analysis_result.keys()) if analysis_result else []},
+                success=False
+            )
+
             user_response = process_ai_response(result_text, uid)
             return user_response
-        
+
         # 5. 保存菜品记录到数据库
         identified_dishes = analysis_result['dishes']
         # 使用时区感知的当前时间
@@ -276,22 +331,49 @@ IMPORTANT:
             if dish_name:
                 save_user_dish_record(uid, dish_name, current_time)
                 saved_count += 1
-        
+
         print(f"✅ Saved {saved_count} dish records for user {uid}")
-        
+
+        # Log the successful saving of dish records
+        interaction_logger.log_user_dish_analysis(
+            uid,
+            result,
+            {
+                "dishes_count": len(identified_dishes),
+                "dishes_saved": saved_count,
+                "dishes": [dish.get('name') for dish in identified_dishes]
+            }
+        )
+
         # 6. 返回用户文本回复
         user_response = analysis_result['user_response']
         print("📤 Returning text response to user:")
         print(user_response)
         print("=" * 50)
-        
+
+        # Log the successful completion of the process
+        interaction_logger.log_user_action(uid, "user_dish_identification_completed", "plate_analyze", {
+            "image_path": result,
+            "dishes_identified": len(identified_dishes),
+            "dishes_saved": saved_count,
+            "user_response_length": len(user_response) if user_response else 0
+        })
+
         return user_response
-        
+
     except Exception as e:
         error_msg = "抱歉，菜品识别暂时不可用，请稍后重试。"
         print(f"❌ Error during analysis: {e}")
         import traceback
         traceback.print_exc()
+
+        # Log the error during analysis
+        interaction_logger.log_user_action(uid, "user_dish_identification_error", "plate_analyze", {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "image_path": result if 'result' in locals() else "unknown"
+        })
+
         return error_msg
 
 # 使用示例

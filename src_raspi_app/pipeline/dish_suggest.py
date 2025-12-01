@@ -12,6 +12,7 @@ from datetime import datetime, date
 import pytz
 from services.llm_service import ask_llm
 from database.db_connection import get_db_connection
+from utils.user_interaction_logger import interaction_logger
 
 
 def process_speech_to_llm(speech_text: str, uid: Optional[str] = None) -> Optional[str]:
@@ -27,7 +28,16 @@ def process_speech_to_llm(speech_text: str, uid: Optional[str] = None) -> Option
     """
     if not speech_text or not speech_text.strip():
         logging.warning("语音识别结果为空，跳过大模型处理")
+        if uid:
+            interaction_logger.log_user_action(uid, "speech_recognition_empty", "dish_suggest", {
+                "speech_text": speech_text
+            })
         return None
+
+    # Log the user's speech input
+    interaction_logger.log_user_action(uid or "unknown", "speech_recognition_input", "dish_suggest", {
+        "speech_text": speech_text
+    })
 
     try:
         # 获取用户资料（如果提供了uid）
@@ -49,23 +59,81 @@ def process_speech_to_llm(speech_text: str, uid: Optional[str] = None) -> Option
 
         logging.info(f"向大模型发送请求: {speech_text}")
 
+        # Log the LLM request
+        interaction_logger.log_pipeline_operation(
+            uid or "unknown",
+            "dish_suggest",
+            "llm_request",
+            {"prompt": prompt},
+            success=True
+        )
+
         # 调用大模型服务
         result = ask_llm(prompt)
         logging.info(f"大模型返回结果: {result}")
+
+        # Log the LLM response
+        interaction_logger.log_pipeline_operation(
+            uid or "unknown",
+            "dish_suggest",
+            "llm_response",
+            {"input_prompt": prompt},
+            {"result": result},
+            success=True if result else False
+        )
 
         if result:
             # 提取JSON数据并更新用户偏好
             extracted_preferences = _extract_json_from_response(result)
             if extracted_preferences and uid:
+                # Log the preference extraction
+                interaction_logger.log_pipeline_operation(
+                    uid,
+                    "dish_suggest",
+                    "preferences_extracted",
+                    {"result": result},
+                    {"extracted_preferences": extracted_preferences},
+                    success=True
+                )
+
                 _update_user_preferences(uid, extracted_preferences)
+
+                # Log the preference update
+                interaction_logger.log_pipeline_operation(
+                    uid,
+                    "dish_suggest",
+                    "preferences_updated",
+                    {"preferences_data": extracted_preferences},
+                    success=True
+                )
 
             # 使用正则表达式提取并移除JSON部分
             result_without_json = _remove_json_from_response(result)
+
+            # Log the successful completion of the process
+            interaction_logger.log_user_action(uid or "unknown", "speech_to_llm_completed", "dish_suggest", {
+                "input_length": len(speech_text),
+                "result_length": len(result_without_json) if result_without_json else 0
+            })
+
             return result_without_json
+
+        # Log the case where no result was returned
+        interaction_logger.log_user_action(uid or "unknown", "speech_to_llm_no_result", "dish_suggest", {
+            "input_length": len(speech_text) if speech_text else 0
+        })
 
         return result
     except Exception as e:
         logging.error(f"处理语音识别结果时发生错误: {e}")
+
+        # Log the error
+        interaction_logger.log_user_action(uid or "unknown", "speech_to_llm_error", "dish_suggest", {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "input_length": len(speech_text) if speech_text else 0
+        })
+
         return None
 
 
@@ -417,7 +485,18 @@ def process_command_speech_to_llm(speech_text: str, command_context: Optional[st
     """
     if not speech_text or not speech_text.strip():
         logging.warning("语音识别结果为空，跳过大模型处理")
+        if uid:
+            interaction_logger.log_user_action(uid, "command_speech_recognition_empty", "dish_suggest", {
+                "speech_text": speech_text,
+                "command_context": command_context
+            })
         return None
+
+    # Log the user's command speech input
+    interaction_logger.log_user_action(uid or "unknown", "command_speech_recognition_input", "dish_suggest", {
+        "speech_text": speech_text,
+        "command_context": command_context
+    })
 
     try:
         # 获取用户资料（如果提供了uid）
@@ -446,19 +525,71 @@ def process_command_speech_to_llm(speech_text: str, command_context: Optional[st
         result = ask_llm(prompt)
         logging.info(f"大模型返回结果: {result}")
 
+        # Log the LLM request for command speech
+        interaction_logger.log_pipeline_operation(
+            uid or "unknown",
+            "dish_suggest",
+            "command_llm_request",
+            {"prompt": prompt, "command_context": command_context},
+            {"result": result},
+            success=True if result else False
+        )
+
         if result:
             # 提取JSON数据并更新用户偏好
             extracted_preferences = _extract_json_from_response(result)
             if extracted_preferences and uid:
+                # Log the preference extraction for command speech
+                interaction_logger.log_pipeline_operation(
+                    uid,
+                    "dish_suggest",
+                    "command_preferences_extracted",
+                    {"result": result},
+                    {"extracted_preferences": extracted_preferences},
+                    success=True
+                )
+
                 _update_user_preferences(uid, extracted_preferences)
+
+                # Log the preference update for command speech
+                interaction_logger.log_pipeline_operation(
+                    uid,
+                    "dish_suggest",
+                    "command_preferences_updated",
+                    {"preferences_data": extracted_preferences},
+                    success=True
+                )
 
             # 使用正则表达式提取并移除JSON部分
             result_without_json = _remove_json_from_response(result)
+
+            # Log the successful completion of the command process
+            interaction_logger.log_user_action(uid or "unknown", "command_speech_to_llm_completed", "dish_suggest", {
+                "input_length": len(speech_text),
+                "result_length": len(result_without_json) if result_without_json else 0,
+                "command_context": command_context
+            })
+
             return result_without_json
+
+        # Log the case where no result was returned for command
+        interaction_logger.log_user_action(uid or "unknown", "command_speech_to_llm_no_result", "dish_suggest", {
+            "input_length": len(speech_text) if speech_text else 0,
+            "command_context": command_context
+        })
 
         return result
     except Exception as e:
         logging.error(f"处理语音识别结果时发生错误: {e}")
+
+        # Log the error for command speech
+        interaction_logger.log_user_action(uid or "unknown", "command_speech_to_llm_error", "dish_suggest", {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "input_length": len(speech_text) if speech_text else 0,
+            "command_context": command_context
+        })
+
         return None
 
 
