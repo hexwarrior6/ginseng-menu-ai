@@ -58,14 +58,14 @@
             <template #renderItem="{ item }">
               <a-list-item>
                 <a-list-item-meta
-                  :description="`${item.action} - ${new Date(item.createdAt).toLocaleString()}`"
+                  :description="`${getActionValue(item)} - ${new Date(item.timestamp).toLocaleString()}`"
                 >
                   <template #title>
-                    <a>{{ item.userId?.name || item.userId?.uid || 'Unknown User' }}</a>
+                    <a>{{ getUserInfo(item) }}</a>
                   </template>
                   <template #avatar>
                     <a-avatar :style="{ backgroundColor: '#1890ff' }">
-                      {{ (item.userId?.name || item.userId?.uid)?.charAt(0) || '?' }}
+                      {{ getUserInitials(item) }}
                     </a-avatar>
                   </template>
                 </a-list-item-meta>
@@ -166,6 +166,27 @@ export default {
         // Show error notification to user
         this.$message?.error('Failed to load dashboard data');
       }
+    },
+    getUserInfo(item) {
+      // Try to get user info from different possible fields
+      if (item.userId?.name) return item.userId.name;
+      if (item.userId?.uid) return item.userId.uid;
+      if (item.extra?.uid) return item.extra.uid;
+      if (item.userId) return item.userId; // In case it's just a UID string
+      return 'Unknown User';
+    },
+    getUserInitials(item) {
+      const userInfo = this.getUserInfo(item);
+      if (userInfo && userInfo !== 'Unknown User') {
+        return userInfo.charAt(0).toUpperCase();
+      }
+      return '?';
+    },
+    getActionValue(item) {
+      // Try to get action from different possible fields
+      if (item.action) return item.action;
+      if (item.extra?.action) return item.extra.action;
+      return 'N/A';
     }
   }
 };
