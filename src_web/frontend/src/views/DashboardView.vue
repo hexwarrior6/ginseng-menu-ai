@@ -120,7 +120,7 @@ export default {
       },
       recentActivity: [],
       popularDishes: [],
-      activeTabKey: 'history',
+      activeTabKey: 'today',
       tabList: [
         {
           key: 'today',
