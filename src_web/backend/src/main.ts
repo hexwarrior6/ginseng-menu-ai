@@ -15,7 +15,8 @@ async function bootstrap() {
       'http://localhost:8000',  // Another common port
       'http://localhost:4200',  // Angular default port
       'http://localhost:4173',  // Vite build server port
-      'https://ginseng-menu-ai-backend.vercel.app',
+      'https://ginseng-menu-ai.vercel.app',
+      'https://ginseng-menu-ai.hexwarrior6.top',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
