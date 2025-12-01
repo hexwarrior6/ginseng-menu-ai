@@ -20,4 +20,9 @@ export class InteractionLogsController {
   async findByUserId(@Param('userId') userId: string): Promise<InteractionLog[]> {
     return this.interactionLogsService.findByUserId(userId);
   }
+
+  @Post()
+  async create(@Body() createInteractionLogDto: any): Promise<InteractionLog> {
+    return this.interactionLogsService.create(createInteractionLogDto);
+  }
 }

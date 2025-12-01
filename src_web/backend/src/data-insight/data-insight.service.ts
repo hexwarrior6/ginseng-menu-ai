@@ -30,20 +30,29 @@ export class DataInsightService {
       createdAt: { $gte: today, $lt: tomorrow }
     });
 
+    // For daily interactions, use timestamp field
     const dailyInteractions = await this.interactionLogModel.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow }
+      timestamp: { $gte: today, $lt: tomorrow }
     });
 
-    const dailyUsers = await this.interactionLogModel.distinct('userId', {
-      createdAt: { $gte: today, $lt: tomorrow }
+    // For dailyUsers, we need to check both userId field and extra.uid
+    const dailyUsersFromUserId = await this.interactionLogModel.distinct('userId', {
+      timestamp: { $gte: today, $lt: tomorrow }
     });
+
+    const dailyUsersFromExtra = await this.interactionLogModel.distinct('extra.uid', {
+      timestamp: { $gte: today, $lt: tomorrow }
+    });
+
+    // Combine both arrays and remove duplicates
+    const allDailyUsers = [...new Set([...dailyUsersFromUserId, ...dailyUsersFromExtra])];
 
     return {
       totalUsers,
       totalDishes: dailyDishes, // Changed to return daily dishes instead of total dishes
       totalInteractions,
       dailyInteractions,
-      dailyActiveUsers: dailyUsers.length,
+      dailyActiveUsers: allDailyUsers.length,
     };
   }
 
@@ -75,8 +84,7 @@ export class DataInsightService {
   async getRecentActivity(limit: number = 20) {
     return await this.interactionLogModel
       .find()
-      .populate('userId', 'name email')
-      .sort({ createdAt: -1 })
+      .sort({ timestamp: -1 })  // Changed from createdAt to timestamp
       .limit(limit);
   }
 }
