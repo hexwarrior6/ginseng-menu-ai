@@ -61,8 +61,23 @@ export class DataInsightService {
     return user?.preferences || [];
   }
 
-  async getPopularDishes(limit: number = 10) {
-    return await this.userDishModel.aggregate([
+  async getPopularDishes(limit: number = 10, timeRange: string = 'history') {
+    const pipeline: any[] = [];
+
+    if (timeRange === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      pipeline.push({
+        $match: {
+          timestamp: { $gte: today, $lt: tomorrow }
+        }
+      });
+    }
+
+    pipeline.push(
       {
         $group: {
           _id: '$dish_name',
@@ -78,7 +93,9 @@ export class DataInsightService {
           count: 1
         }
       }
-    ]);
+    );
+
+    return await this.userDishModel.aggregate(pipeline);
   }
 
   async getRecentActivity(limit: number = 20) {

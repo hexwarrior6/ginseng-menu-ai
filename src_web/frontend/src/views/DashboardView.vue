@@ -75,7 +75,11 @@
         </a-card>
       </a-col>
       <a-col :span="12">
-        <a-card title="Popular Dishes">
+        <a-card 
+          :tab-list="tabList"
+          :active-tab-key="activeTabKey"
+          @tabChange="onTabChange"
+        >
           <a-list
             item-layout="horizontal"
             :data-source="popularDishes"
@@ -115,13 +119,36 @@ export default {
         dailyActiveUsers: 0,
       },
       recentActivity: [],
-      popularDishes: []
+      popularDishes: [],
+      activeTabKey: 'history',
+      tabList: [
+        {
+          key: 'today',
+          tab: 'Today',
+        },
+        {
+          key: 'history',
+          tab: 'History',
+        },
+      ],
     };
   },
   async mounted() {
     await this.loadDashboardData();
   },
   methods: {
+    async fetchPopularDishes() {
+      try {
+        const dishesResponse = await dataInsightApi.getPopularDishes(5, this.activeTabKey);
+        this.popularDishes = dishesResponse.data;
+      } catch (error) {
+        console.error('Error fetching popular dishes:', error);
+      }
+    },
+    onTabChange(key) {
+      this.activeTabKey = key;
+      this.fetchPopularDishes();
+    },
     async loadDashboardData() {
       try {
         // Fetch dashboard stats
@@ -133,8 +160,7 @@ export default {
         this.recentActivity = activityResponse.data;
 
         // Fetch popular dishes
-        const dishesResponse = await dataInsightApi.getPopularDishes(5);
-        this.popularDishes = dishesResponse.data;
+        await this.fetchPopularDishes();
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         // Show error notification to user
