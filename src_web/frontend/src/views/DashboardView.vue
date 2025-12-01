@@ -5,7 +5,7 @@
         <h1>Dashboard</h1>
       </a-col>
     </a-row>
-    
+
     <a-row :gutter="[16, 16]">
       <a-col :span="6">
         <a-card title="Total Users">
@@ -17,7 +17,7 @@
         </a-card>
       </a-col>
       <a-col :span="6">
-        <a-card title="Total Dishes">
+        <a-card title="Total Dishes Today">
           <template #extra>
             <a-tag color="green">Dishes</a-tag>
           </template>

@@ -15,14 +15,18 @@ export class DataInsightService {
 
   async getDashboardStats() {
     const totalUsers = await this.userModel.countDocuments();
-    const totalDishes = await this.dishModel.countDocuments();
     const totalInteractions = await this.interactionLogModel.countDocuments();
-    
+
     // Get today's date for daily stats
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Count dishes created today (daily dishes) instead of total dishes
+    const dailyDishes = await this.dishModel.countDocuments({
+      createdAt: { $gte: today, $lt: tomorrow }
+    });
 
     const dailyInteractions = await this.interactionLogModel.countDocuments({
       createdAt: { $gte: today, $lt: tomorrow }
@@ -34,7 +38,7 @@ export class DataInsightService {
 
     return {
       totalUsers,
-      totalDishes,
+      totalDishes: dailyDishes, // Changed to return daily dishes instead of total dishes
       totalInteractions,
       dailyInteractions,
       dailyActiveUsers: dailyUsers.length,
