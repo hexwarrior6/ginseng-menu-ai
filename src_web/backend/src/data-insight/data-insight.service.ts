@@ -64,10 +64,25 @@ export class DataInsightService {
     return user?.preferences || [];
   }
 
-  async getPopularDishes(limit: number = 10, timeRange: string = 'history') {
+  async getPopularDishes(
+    limit: number = 10,
+    timeRange: string = 'history',
+    startDate?: string,
+    endDate?: string,
+  ) {
     const pipeline: any[] = [];
 
-    if (timeRange === 'today') {
+    if (timeRange === 'today' && startDate && endDate) {
+      pipeline.push({
+        $match: {
+          timestamp: {
+            $gte: new Date(startDate),
+            $lt: new Date(endDate),
+          },
+        },
+      });
+    } else if (timeRange === 'today') {
+      // Fallback to server time if no dates provided (backward compatibility)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -75,8 +90,8 @@ export class DataInsightService {
 
       pipeline.push({
         $match: {
-          timestamp: { $gte: today, $lt: tomorrow }
-        }
+          timestamp: { $gte: today, $lt: tomorrow },
+        },
       });
     }
 

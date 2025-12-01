@@ -16,9 +16,14 @@ export class DataInsightController {
   }
 
   @Get('popular-dishes')
-  async getPopularDishes(@Query('limit') limit?: string, @Query('timeRange') timeRange?: string) {
+  async getPopularDishes(
+    @Query('limit') limit?: string,
+    @Query('timeRange') timeRange?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    return this.dataInsightService.getPopularDishes(parsedLimit, timeRange);
+    return this.dataInsightService.getPopularDishes(parsedLimit, timeRange, startDate, endDate);
   }
 
   @Get('recent-activity')

@@ -146,7 +146,18 @@ export default {
   methods: {
     async fetchPopularDishes() {
       try {
-        const dishesResponse = await dataInsightApi.getPopularDishes(5, this.activeTabKey);
+        let startDate = null;
+        let endDate = null;
+
+        if (this.activeTabKey === 'today') {
+          const now = new Date();
+          const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+          startDate = start.toISOString();
+          endDate = end.toISOString();
+        }
+
+        const dishesResponse = await dataInsightApi.getPopularDishes(5, this.activeTabKey, startDate, endDate);
         this.popularDishes = dishesResponse.data;
       } catch (error) {
         console.error('Error fetching popular dishes:', error);
