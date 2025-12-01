@@ -75,11 +75,18 @@
         </a-card>
       </a-col>
       <a-col :span="12">
-        <a-card 
-          :tab-list="tabList"
-          :active-tab-key="activeTabKey"
-          @tabChange="onTabChange"
-        >
+        <a-card title="Popular Dishes">
+          <template #extra>
+            <a-tabs 
+              v-model:activeKey="activeTabKey" 
+              @change="onTabChange" 
+              size="small" 
+              :tabBarStyle="{ marginBottom: 0, borderBottom: 'none' }"
+            >
+              <a-tab-pane key="today" tab="Today" />
+              <a-tab-pane key="history" tab="History" />
+            </a-tabs>
+          </template>
           <a-list
             item-layout="horizontal"
             :data-source="popularDishes"
@@ -191,3 +198,10 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+/* Hide the 'more' overflow menu in tabs */
+::v-deep .ant-tabs-nav-more {
+  display: none !important;
+}
+</style>
