@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { User } from '../models/user.model';
 import { Dish } from '../models/dish.model';
 import { InteractionLog } from '../models/interaction-log.model';
+import { UserDish } from '../user-dishes/user-dish.model';
 
 @Injectable()
 export class DataInsightService {
@@ -11,7 +12,8 @@ export class DataInsightService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Dish.name) private dishModel: Model<Dish>,
     @InjectModel(InteractionLog.name) private interactionLogModel: Model<InteractionLog>,
-  ) {}
+    @InjectModel(UserDish.name) private userDishModel: Model<UserDish>,
+  ) { }
 
   async getDashboardStats() {
     const totalUsers = await this.userModel.countDocuments();
@@ -51,9 +53,23 @@ export class DataInsightService {
   }
 
   async getPopularDishes(limit: number = 10) {
-    // This would aggregate interaction logs to find popular dishes
-    // For now, returning all dishes as a placeholder
-    return await this.dishModel.find({ isAvailable: true }).limit(limit);
+    return await this.userDishModel.aggregate([
+      {
+        $group: {
+          _id: '$dish_name',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 0,
+          name: '$_id',
+          count: 1
+        }
+      }
+    ]);
   }
 
   async getRecentActivity(limit: number = 20) {

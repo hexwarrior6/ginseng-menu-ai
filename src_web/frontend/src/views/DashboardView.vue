@@ -80,16 +80,15 @@
             item-layout="horizontal"
             :data-source="popularDishes"
           >
-            <template #renderItem="{ item }">
+            <template #renderItem="{ item, index }">
               <a-list-item>
                 <a-list-item-meta
                   :title="item.name"
-                  :description="item.description || 'No description'"
+                  :description="`Ordered ${item.count} times`"
                 >
                   <template #avatar>
-                    <a-avatar shape="square" v-if="item.image" :src="item.image" />
-                    <a-avatar v-else :style="{ backgroundColor: '#87d068' }">
-                      <icon-appstore />
+                    <a-avatar :style="{ backgroundColor: index < 3 ? '#ff4d4f' : '#1890ff' }">
+                      {{ index + 1 }}
                     </a-avatar>
                   </template>
                 </a-list-item-meta>
@@ -134,7 +133,7 @@ export default {
         this.recentActivity = activityResponse.data;
 
         // Fetch popular dishes
-        const dishesResponse = await dataInsightApi.getPopularDishes();
+        const dishesResponse = await dataInsightApi.getPopularDishes(5);
         this.popularDishes = dishesResponse.data;
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
