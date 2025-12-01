@@ -201,7 +201,7 @@ export default {
 
 <style scoped>
 /* Hide the 'more' overflow menu in tabs */
-::v-deep .ant-tabs-nav-more {
+:deep(.ant-tabs-nav-more) {
   display: none !important;
 }
 </style>

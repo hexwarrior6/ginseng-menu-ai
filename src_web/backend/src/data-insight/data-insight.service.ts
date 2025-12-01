@@ -27,7 +27,10 @@ export class DataInsightService {
 
     // Count dishes created today (daily dishes) instead of total dishes
     const dailyDishes = await this.dishModel.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow }
+      $or: [
+        { timestamp: { $gte: today, $lt: tomorrow } },
+        { createdAt: { $gte: today, $lt: tomorrow } }
+      ]
     });
 
     // For daily interactions, use timestamp field
