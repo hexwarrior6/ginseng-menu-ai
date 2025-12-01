@@ -12,6 +12,7 @@ from zhipuai import ZhipuAI
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from database import insert_data, get_db_connection
+from utils.user_interaction_logger import interaction_logger
 
 ZHIPUAI_API_KEY = "e62abd4ebbba488ea4a96771929b6c6d.41RwSM4Nd0Y92AEN"
 IMG_DIR = "src_raspi_app/temp/captured_dish"
@@ -193,20 +194,35 @@ def save_dishes_to_database(dishes_data):
     
 def capture_and_analyze_dishes():
     """拍照并分析多个菜品，返回JSON格式的结构化数据并自动保存到数据库"""
-    
+
+    # Log the start of dish capture and analysis
+    interaction_logger.log_user_action("system", "dish_capture_start", "dish_enter", {
+        "process": "dish_capture_analysis"
+    })
+
     # 1. 调用相机拍照
     print("Starting camera capture...")
     result = capture_image()
-    
+
     if not result:
         print("Photo capture failed!")
+        # Log the failure
+        interaction_logger.log_user_action("system", "dish_capture_failed", "dish_enter", {
+            "error": "Camera capture failed",
+            "image_path": result
+        })
         return None
-    
+
     print(f"Photo captured successfully! File saved at: {result}")
-    
+
+    # Log the successful photo capture
+    interaction_logger.log_user_action("system", "dish_capture_success", "dish_enter", {
+        "image_path": result
+    })
+
     # 2. 分析图片
     client = ZhipuAI(api_key=ZHIPUAI_API_KEY)
-    
+
     # 读取拍摄的图片
     with open(result, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
@@ -287,16 +303,36 @@ IMPORTANT:
         print("RAW RESPONSE:")
         print(result_text)
         print("=" * 50)
-        
+
+        # Log the AI response
+        interaction_logger.log_pipeline_operation(
+            "system",
+            "dish_enter",
+            "ai_response_received",
+            {"image_path": result},
+            {"raw_response_length": len(result_text)},
+            success=True
+        )
+
         # 使用改进的JSON提取
         analysis_result = extract_json_from_text(result_text)
-        
+
         if analysis_result is None:
             print("❌ Failed to extract JSON from response")
             # 保存原始响应以便调试
             with open("debug_raw_response.txt", "w", encoding="utf-8") as f:
                 f.write(result_text)
             print("💾 Raw response saved to debug_raw_response.txt for analysis")
+
+            # Log the failure to extract JSON
+            interaction_logger.log_pipeline_operation(
+                "system",
+                "dish_enter",
+                "json_extraction_failed",
+                {"raw_response_length": len(result_text)},
+                success=False
+            )
+
             return None
         
         # 调试：打印提取的结果结构
@@ -336,20 +372,68 @@ IMPORTANT:
         
         # 3. 自动保存到数据库（包含重复检查逻辑）
         if valid_dishes:
+            # Log the dish analysis result before saving
+            interaction_logger.log_pipeline_operation(
+                "system",
+                "dish_enter",
+                "dishes_analyzed",
+                {"image_path": result, "valid_dishes_count": len(valid_dishes)},
+                {"dishes": [dish.get('name', 'Unknown') for dish in valid_dishes]},
+                success=True
+            )
+
             saved_ids = save_dishes_to_database(analysis_result)
             if saved_ids:
                 print(f"🎉 Successfully processed {len(saved_ids)} dishes to database!")
+                # Log the successful database save
+                interaction_logger.log_pipeline_operation(
+                    "system",
+                    "dish_enter",
+                    "dishes_saved_to_db",
+                    {"dishes_count": len(valid_dishes)},
+                    {"saved_ids": saved_ids},
+                    success=True
+                )
             else:
                 print("⚠️ Analysis completed but failed to save any dishes to database")
+                # Log the failure to save to database
+                interaction_logger.log_pipeline_operation(
+                    "system",
+                    "dish_enter",
+                    "dishes_save_to_db_failed",
+                    {"dishes_count": len(valid_dishes)},
+                    success=False
+                )
         else:
             print("❌ No valid dishes found to save")
-        
+            # Log that no valid dishes were found
+            interaction_logger.log_user_action("system", "no_valid_dishes_found", "dish_enter", {
+                "image_path": result,
+                "total_dishes_found": len(analysis_result.get('dishes', [])),
+                "valid_dishes_count": 0
+            })
+
+        # Log the completion of the dish capture and analysis process
+        interaction_logger.log_user_action("system", "dish_capture_analysis_completed", "dish_enter", {
+            "image_path": result,
+            "valid_dishes_count": len(valid_dishes),
+            "dishes_saved_count": len(saved_ids) if saved_ids else 0
+        })
+
         return analysis_result
-        
+
     except Exception as e:
         print(f"❌ Error during analysis: {e}")
         import traceback
         traceback.print_exc()
+
+        # Log the error during analysis
+        interaction_logger.log_user_action("system", "dish_capture_analysis_error", "dish_enter", {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "image_path": result if 'result' in locals() else "unknown"
+        })
+
         return None
 
 # 使用示例
