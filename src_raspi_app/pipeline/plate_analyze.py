@@ -353,8 +353,17 @@ IMPORTANT:
             }
         )
 
-        # Send telemetry
-        send_telemetry(CAMERA_TOKEN, analysis_result)
+        # Send telemetry for each dish individually
+        for dish in identified_dishes:
+            telemetry_data = {
+                "dish_name": dish.get('name'),
+                "confidence": dish.get('confidence'),
+                "description": dish.get('description')
+            }
+            send_telemetry(CAMERA_TOKEN, telemetry_data)
+            # Small delay to ensure order if needed, though requests are synchronous
+            import time
+            time.sleep(0.1)
 
         # 6. 返回用户文本回复
         user_response = analysis_result['user_response']
