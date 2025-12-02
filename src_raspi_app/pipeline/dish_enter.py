@@ -428,8 +428,22 @@ IMPORTANT:
             "dishes_saved_count": len(saved_ids) if saved_ids else 0
         })
 
-        # Send telemetry
-        send_telemetry(CAMERA_TOKEN, analysis_result)
+        # Send telemetry for each dish individually
+        for dish in valid_dishes:
+            telemetry_data = {
+                "name": dish.get('name'),
+                "category": dish.get('category'),
+                "calories": dish.get('calories'),
+                "protein": dish.get('nutrition', {}).get('protein_g'),
+                "carbs": dish.get('nutrition', {}).get('carbs_g'),
+                "fat": dish.get('nutrition', {}).get('fat_g'),
+                "fiber": dish.get('nutrition', {}).get('fiber_g'),
+                "ingredients": dish.get('ingredients')
+            }
+            send_telemetry(CAMERA_TOKEN, telemetry_data)
+            # Small delay to ensure order
+            import time
+            time.sleep(0.1)
 
         return analysis_result
 
