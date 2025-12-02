@@ -8,7 +8,7 @@
 
     <a-row :gutter="[16, 16]">
       <a-col :span="6">
-        <a-card title="Total Users">
+        <a-card title="Total Users" class="stats-card">
           <template #extra>
             <a-tag color="blue">Users</a-tag>
           </template>
@@ -17,7 +17,7 @@
         </a-card>
       </a-col>
       <a-col :span="6">
-        <a-card title="Total Dishes Today">
+        <a-card title="Total Dishes Today" class="stats-card">
           <template #extra>
             <a-tag color="green">Dishes</a-tag>
           </template>
@@ -26,7 +26,7 @@
         </a-card>
       </a-col>
       <a-col :span="6">
-        <a-card title="Total Interactions">
+        <a-card title="Total Interactions" class="stats-card">
           <template #extra>
             <a-tag color="orange">Interactions</a-tag>
           </template>
@@ -35,7 +35,7 @@
         </a-card>
       </a-col>
       <a-col :span="6">
-        <a-card title="Daily Active Users">
+        <a-card title="Daily Active Users" class="stats-card">
           <template #extra>
             <a-tag color="purple">Today</a-tag>
           </template>
@@ -45,21 +45,23 @@
       </a-col>
     </a-row>
 
-    <a-row :gutter="[16, 16]" style="margin-top: 16px;" class="dashboard-row">
-      <a-col :span="8">
-        <a-card title="Recent Activity" class="full-height-card">
+    <a-row :gutter="[16, 16]" style="margin-top: 16px;" class="dashboard-row" type="flex">
+      <a-col :span="8" class="dashboard-col">
+        <a-card title="Recent Activity" class="full-height-card recent-activity-card">
           <a-list
             item-layout="horizontal"
             :data-source="recentActivity"
             :pagination="{
-              pageSize: 5,
+              pageSize: 4,
             }"
           >
             <template #renderItem="{ item }">
               <a-list-item>
-                <a-list-item-meta
-                  :description="`${getActionValue(item)} - ${new Date(item.timestamp).toLocaleString()}`"
-                >
+                <a-list-item-meta>
+                  <template #description>
+                    <div>{{ getActionValue(item) }}</div>
+                    <div class="activity-time">{{ new Date(item.timestamp).toLocaleString() }}</div>
+                  </template>
                   <template #title>
                     <a>{{ getUserInfo(item) }}</a>
                   </template>
@@ -74,8 +76,8 @@
           </a-list>
         </a-card>
       </a-col>
-      <a-col :span="8">
-        <a-card title="Popular Dishes" class="full-height-card">
+      <a-col :span="8" class="dashboard-col">
+        <a-card title="Popular Dishes" class="full-height-card popular-dishes-card">
           <template #extra>
             <a-tabs 
               v-model:activeKey="activeTabKey" 
@@ -108,7 +110,7 @@
           </a-list>
         </a-card>
       </a-col>
-      <a-col :span="8">
+      <a-col :span="8" class="dashboard-col">
         <a-card title="AI Analyze" class="full-height-card">
           <template #extra>
             <a-button 
@@ -244,7 +246,24 @@ export default {
 }
 
 .dashboard-row {
-  min-height: 400px;
+  height: 460px;
+}
+
+.dashboard-col {
+  height: 100%;
+}
+
+.stats-card {
+  min-height: auto;
+}
+
+.stats-card :deep(.ant-card-body) {
+  padding: 10px 20px 10px 20px;
+}
+
+/* 调整 stats-card 中的段落间距 */
+.stats-card :deep(.ant-card-body p) {
+  margin-bottom: 6px; /* 减少段落之间的间距 */
 }
 
 .full-height-card {
@@ -264,13 +283,69 @@ export default {
 /* Recent Activity 和 Popular Dishes 的列表样式 */
 .full-height-card :deep(.ant-list) {
   flex: 1;
-  overflow-y: auto;
-  padding: 16px;
+  overflow-y: hidden; /* 禁止滚动 */
+  padding: 12px; /* 恢复之前的值 */
+}
+
+/* Recent Activity 和 Popular Dishes 隐藏滚动条 */
+.recent-activity-card :deep(.ant-list),
+.popular-dishes-card :deep(.ant-list) {
+  flex: 1;
+  overflow-y: hidden; /* 禁止滚动 */
+  padding: 12px;
+  /* 隐藏滚动条 */
+  -ms-overflow-style: none;  /* IE 和 Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.recent-activity-card :deep(.ant-list::-webkit-scrollbar),
+.popular-dishes-card :deep(.ant-list::-webkit-scrollbar) {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .full-height-card :deep(.ant-list-pagination) {
-  padding: 16px;
+  padding: 12px; /* 恢复之前的值 */
   margin: 0;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px; /* 减少时间显示的上边距 */
+}
+
+/* Recent Activity 列表项样式调整 */
+.recent-activity-card :deep(.ant-list-item) {
+  padding: 6px 12px !important; /* 减少列表项的内边距 */
+}
+
+.recent-activity-card :deep(.ant-list-item-meta) {
+  margin-bottom: 0; /* 移除列表项元信息的底部边距 */
+}
+
+.recent-activity-card :deep(.ant-list-item-meta-title) {
+  margin-bottom: 2px; /* 减少标题的底部边距 */
+}
+
+.recent-activity-card :deep(.ant-list-item-meta-description) {
+  margin-bottom: 0; /* 移除描述的底部边距 */
+}
+
+
+.popular-dishes-card :deep(.ant-list-item) {
+  padding: 12px !important; /* 保持列表项内边距 */
+}
+
+.popular-dishes-card :deep(.ant-list-item-meta) {
+  margin-bottom: 0; /* 保持元信息底部边距 */
+}
+
+.popular-dishes-card :deep(.ant-list-item-meta-title) {
+  margin-bottom: 2px; /* 调整标题底部边距以保持一致性 */
+}
+
+.popular-dishes-card :deep(.ant-list-item-meta-description) {
+  margin-bottom: 0; /* 保持描述底部边距 */
 }
 
 /* AI Analyze 区域样式 */
@@ -304,8 +379,8 @@ export default {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
-  max-height: 100%;
   font-size: 16px;
+  min-height: 0; /* Ensures flex child can shrink */
 }
 
 .analysis-content :deep(p) {
