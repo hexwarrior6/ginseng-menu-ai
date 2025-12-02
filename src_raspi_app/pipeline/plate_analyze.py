@@ -13,6 +13,14 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from database import insert_data, get_db_connection
 from utils.user_interaction_logger import interaction_logger
+import sys
+import os
+
+# Add parent directory to path to import services
+sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+from services.telemetry import send_telemetry
+
+CAMERA_TOKEN = "c1zm08l5c2ko91v785eh"
 
 ZHIPUAI_API_KEY = "e62abd4ebbba488ea4a96771929b6c6d.41RwSM4Nd0Y92AEN"
 IMG_DIR = "src_raspi_app/temp/captured_dish"
@@ -344,6 +352,9 @@ IMPORTANT:
                 "dishes": [dish.get('name') for dish in identified_dishes]
             }
         )
+
+        # Send telemetry
+        send_telemetry(CAMERA_TOKEN, analysis_result)
 
         # 6. 返回用户文本回复
         user_response = analysis_result['user_response']
