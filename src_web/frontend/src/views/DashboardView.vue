@@ -66,8 +66,8 @@
                     <a>{{ getUserInfo(item) }}</a>
                   </template>
                   <template #avatar>
-                    <a-avatar :style="{ backgroundColor: '#1890ff' }">
-                      {{ getUserInitials(item) }}
+                    <a-avatar :style="{ backgroundColor: getLogLevelColor(item.level) }">
+                      {{ getLogLevelInitial(item.level) }}
                     </a-avatar>
                   </template>
                 </a-list-item-meta>
@@ -222,6 +222,23 @@ export default {
       if (item.action) return item.action;
       if (item.extra?.action) return item.extra.action;
       return 'N/A';
+    },
+    getLogLevelColor(level) {
+      // 根据日志级别返回不同颜色
+      const levelColors = {
+        'DEBUG': '#87CEEB',    // 浅蓝色
+        'INFO': '#1890ff',     // 蓝色
+        'WARNING': '#faad14',  // 橙色
+        'ERROR': '#f5222d',    // 红色
+        'CRITICAL': '#a61d24', // 深红色
+        'SUCCESS': '#52c41a'   // 绿色
+      };
+      return levelColors[level?.toUpperCase()] || '#1890ff'; // 默认蓝色
+    },
+    getLogLevelInitial(level) {
+      // 获取日志级别的首字母
+      if (!level) return '?';
+      return level.charAt(0).toUpperCase();
     },
     async analyzeData() {
       this.isAnalyzing = true;
