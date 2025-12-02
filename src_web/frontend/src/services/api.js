@@ -79,4 +79,5 @@ export const dataInsightApi = {
     return apiClient.get(url);
   },
   getRecentActivity: (limit = 20) => apiClient.get(`/data-insight/recent-activity?limit=${limit}`),
+  getAiAnalysis: () => apiClient.get('/data-insight/ai-analysis'),
 };
