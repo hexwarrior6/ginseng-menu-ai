@@ -13,6 +13,14 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from database import insert_data, get_db_connection
 from utils.user_interaction_logger import interaction_logger
+import sys
+import os
+
+# Add parent directory to path to import services
+sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+from services.telemetry import send_telemetry
+
+CAMERA_TOKEN = "c1zm08l5c2ko91v785eh"
 
 ZHIPUAI_API_KEY = "e62abd4ebbba488ea4a96771929b6c6d.41RwSM4Nd0Y92AEN"
 IMG_DIR = "src_raspi_app/temp/captured_dish"
@@ -419,6 +427,23 @@ IMPORTANT:
             "valid_dishes_count": len(valid_dishes),
             "dishes_saved_count": len(saved_ids) if saved_ids else 0
         })
+
+        # Send telemetry for each dish individually
+        for dish in valid_dishes:
+            telemetry_data = {
+                "name": dish.get('name'),
+                "category": dish.get('category'),
+                "calories": dish.get('calories'),
+                "protein": dish.get('nutrition', {}).get('protein_g'),
+                "carbs": dish.get('nutrition', {}).get('carbs_g'),
+                "fat": dish.get('nutrition', {}).get('fat_g'),
+                "fiber": dish.get('nutrition', {}).get('fiber_g'),
+                "ingredients": dish.get('ingredients')
+            }
+            send_telemetry(CAMERA_TOKEN, telemetry_data)
+            # Small delay to ensure order
+            import time
+            time.sleep(0.1)
 
         return analysis_result
 

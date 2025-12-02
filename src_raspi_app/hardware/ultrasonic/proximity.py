@@ -9,7 +9,14 @@ import yaml
 import threading
 from .sensor import UltrasonicDistanceSensor
 from pathlib import Path
+import sys
+import os
 
+# Add parent directory to path to import services
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+from services.telemetry import send_telemetry
+
+ULTRASONIC_TOKEN = "kjwlj56sxpdm767jgqpk"
 
 class ProximityDetector:
     """
@@ -101,6 +108,8 @@ class ProximityDetector:
                     if time_in_current_state >= self.wake_trigger_duration:
                         self._current_output_state = True
                         print(f"确认靠近! 持续时间: {time_in_current_state:.1f}s")
+                        # Send telemetry
+                        send_telemetry(ULTRASONIC_TOKEN, {"presence": True, "distance": current_distance})
                 # 如果已经是True状态，保持True
             else:
                 # 当前处于远离状态
@@ -109,6 +118,8 @@ class ProximityDetector:
                     if time_in_current_state >= self.sleep_trigger_duration:
                         self._current_output_state = False
                         print(f"确认远离! 持续时间: {time_in_current_state:.1f}s")
+                        # Send telemetry
+                        send_telemetry(ULTRASONIC_TOKEN, {"presence": False, "distance": current_distance})
                 # 如果已经是False状态，保持False
             
             return self._current_output_state
@@ -162,10 +173,14 @@ class ProximityDetector:
                 if not self._current_output_state and time_in_current_state >= self.wake_trigger_duration:
                     self._current_output_state = True
                     print(f"确认靠近! 持续时间: {time_in_current_state:.1f}s")
+                    # Send telemetry
+                    send_telemetry(ULTRASONIC_TOKEN, {"presence": True, "distance": median_distance})
             else:
                 if self._current_output_state and time_in_current_state >= self.sleep_trigger_duration:
                     self._current_output_state = False
                     print(f"确认远离! 持续时间: {time_in_current_state:.1f}s")
+                    # Send telemetry
+                    send_telemetry(ULTRASONIC_TOKEN, {"presence": False, "distance": median_distance})
             
             return self._current_output_state
 

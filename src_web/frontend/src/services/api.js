@@ -78,5 +78,6 @@ export const dataInsightApi = {
     if (endDate) url += `&endDate=${endDate}`;
     return apiClient.get(url);
   },
-  getRecentActivity: (limit = 20) => apiClient.get(`/data-insight/recent-activity?limit=${limit}`),
+  getRecentActivity: (limit = 12) => apiClient.get(`/data-insight/recent-activity?limit=${limit}`),
+  getAiAnalysis: () => apiClient.get('/data-insight/ai-analysis'),
 };

@@ -3,6 +3,14 @@ import pyaudio
 import json
 from vosk import Model, KaldiRecognizer
 import time
+import sys
+import os
+
+# Add parent directory to path to import services
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+from services.telemetry import send_telemetry
+
+MICROPHONE_TOKEN = "uv4IdoVUo4fQtBLpB43n"
 
 # 全局配置
 RATE = 16000
@@ -114,6 +122,8 @@ def recognize_speech(timeout=10, device_index=None, silence_threshold=1.5,
         if final_text and not recognized_text:
             recognized_text = final_text
             print(f"✓ 最终识别: {final_text}")
+            # Send telemetry
+            send_telemetry(MICROPHONE_TOKEN, {"speech": final_text})
         
         stream.stop_stream()
         stream.close()
@@ -166,6 +176,8 @@ def recognize_speech_continuous(callback, device_index=None, stop_callback=None)
                 text = result.get('text', '').strip()
                 if text:
                     callback(text)
+                    # Send telemetry
+                    send_telemetry(MICROPHONE_TOKEN, {"speech": text})
             else:
                 partial = json.loads(recognizer.PartialResult())
                 text = partial.get('partial', '').strip()
@@ -227,6 +239,8 @@ def recognize_speech_continuous_with_stop_flag(stop_flag, on_partial=None, on_fi
                     # 调用完整结果回调
                     if on_final:
                         on_final(text)
+                    # Send telemetry
+                    send_telemetry(MICROPHONE_TOKEN, {"speech": text})
             else:
                 partial = json.loads(recognizer.PartialResult())
                 text = partial.get('partial', '').strip()

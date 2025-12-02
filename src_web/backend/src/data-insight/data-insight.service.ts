@@ -5,6 +5,7 @@ import { User } from '../models/user.model';
 import { Dish } from '../models/dish.model';
 import { InteractionLog } from '../models/interaction-log.model';
 import { UserDish } from '../user-dishes/user-dish.model';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class DataInsightService {
@@ -13,6 +14,7 @@ export class DataInsightService {
     @InjectModel(Dish.name) private dishModel: Model<Dish>,
     @InjectModel(InteractionLog.name) private interactionLogModel: Model<InteractionLog>,
     @InjectModel(UserDish.name) private userDishModel: Model<UserDish>,
+    private configService: ConfigService,
   ) { }
 
   async getDashboardStats() {
@@ -121,5 +123,66 @@ export class DataInsightService {
       .find()
       .sort({ timestamp: -1 })  // Changed from createdAt to timestamp
       .limit(limit);
+  }
+
+  async getAiAnalysis() {
+    // 1. Gather Data
+    const stats = await this.getDashboardStats();
+    const popularDishes = await this.getPopularDishes(5, 'today');
+
+    // 2. Construct Prompt
+    const prompt = `
+      Analyze the following restaurant data for today:
+      - Daily Active Users: ${stats.dailyActiveUsers}
+      - Daily Dishes Ordered: ${stats.totalDishes}
+      - Daily Interactions: ${stats.dailyInteractions}
+      - Top Popular Dishes Today: ${popularDishes.map(d => `${d.name} (${d.count})`).join(', ')}
+      
+      Please provide a brief business analysis and suggestions (max 150 words). Focus on sales performance and user engagement.
+    `;
+
+    // 3. Call DeepSeek API
+    const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
+    const apiUrl = 'https://api.deepseek.com/chat/completions'; // Verify this URL
+
+    console.log('--- AI Analysis Debug ---');
+    console.log('API Key exists:', !!apiKey);
+    if (apiKey) console.log('API Key prefix:', apiKey.substring(0, 5) + '...');
+    console.log('API URL:', apiUrl);
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: "You are a helpful business analyst for a restaurant." },
+            { role: "user", content: prompt }
+          ],
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('DeepSeek API Error Status:', response.status);
+        console.error('DeepSeek API Error Text:', errorText);
+        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      return {
+        analysis: data.choices[0].message.content
+      };
+    } catch (error) {
+      console.error('AI Analysis failed details:', error);
+      return {
+        analysis: "AI analysis is currently unavailable. Please try again later."
+      };
+    }
   }
 }

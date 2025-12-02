@@ -31,4 +31,9 @@ export class DataInsightController {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
     return this.dataInsightService.getRecentActivity(parsedLimit);
   }
+
+  @Get('ai-analysis')
+  async getAiAnalysis() {
+    return this.dataInsightService.getAiAnalysis();
+  }
 }

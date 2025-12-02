@@ -3,6 +3,14 @@ import re
 import threading
 import time
 from typing import Callable, Optional
+import sys
+import os
+
+# Add parent directory to path to import services
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+from services.telemetry import send_telemetry
+
+RFID_TOKEN = "WjC4CCP2yLkYWmNi8PVz"
 
 
 class NFCReader:
@@ -70,6 +78,9 @@ class NFCReader:
                                 # 调用回调函数
                                 if self.uid_callback:
                                     self.uid_callback(uid)
+                                
+                                # Send telemetry
+                                send_telemetry(RFID_TOKEN, {"uid": uid})
 
                                 # 短暂延迟后继续，避免重复读取同一张卡
                                 time.sleep(1)
@@ -83,6 +94,9 @@ class NFCReader:
                                 # 调用回调函数
                                 if self.uid_callback:
                                     self.uid_callback(uid)
+                                
+                                # Send telemetry
+                                send_telemetry(RFID_TOKEN, {"uid": uid})
 
                                 # 短暂延迟后继续，避免重复读取同一张卡
                                 time.sleep(1)
