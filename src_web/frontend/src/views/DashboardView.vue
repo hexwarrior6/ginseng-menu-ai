@@ -331,6 +331,13 @@ export default {
   margin-bottom: 0; /* 移除描述的底部边距 */
 }
 
+/* Recent Activity 文本不换行，超出显示省略号 */
+.recent-activity-card :deep(.ant-list-item-meta-title),
+.recent-activity-card :deep(.ant-list-item-meta-description) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .popular-dishes-card :deep(.ant-list-item) {
   padding: 12px !important; /* 保持列表项内边距 */
@@ -346,6 +353,14 @@ export default {
 
 .popular-dishes-card :deep(.ant-list-item-meta-description) {
   margin-bottom: 0; /* 保持描述底部边距 */
+}
+
+/* Popular Dishes 文本不换行，超出显示省略号 */
+.popular-dishes-card :deep(.ant-list-item-meta-title),
+.popular-dishes-card :deep(.ant-list-item-meta-description) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* AI Analyze 区域样式 */
