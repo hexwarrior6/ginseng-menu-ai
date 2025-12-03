@@ -79,5 +79,5 @@ export const dataInsightApi = {
     return apiClient.get(url);
   },
   getRecentActivity: (limit = 12) => apiClient.get(`/data-insight/recent-activity?limit=${limit}`),
-  getAiAnalysis: () => apiClient.get('/data-insight/ai-analysis'),
+  getAiAnalysis: () => apiClient.get('/data-insight/ai-analysis', { timeout: 120000 }),
 };
