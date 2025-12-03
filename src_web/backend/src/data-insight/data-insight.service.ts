@@ -145,11 +145,6 @@ export class DataInsightService {
     const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
     const apiUrl = 'https://api.deepseek.com/chat/completions'; // Verify this URL
 
-    console.log('--- AI Analysis Debug ---');
-    console.log('API Key exists:', !!apiKey);
-    if (apiKey) console.log('API Key prefix:', apiKey.substring(0, 5) + '...');
-    console.log('API URL:', apiUrl);
-
     try {
       const response = await fetch(apiUrl, {
         method: 'POST',
