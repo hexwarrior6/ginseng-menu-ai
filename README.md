@@ -1,264 +1,311 @@
+English | [简体中文](README_zh-hans.md)
+
 # ginseng_menu_ai
 
-智能食堂多模态菜品推荐系统（Raspberry Pi + AI）
+Intelligent Canteen Multimodal Dish Recommendation System (Raspberry Pi + AI + Web Dashboard)
 
-## 简介
+## Introduction
 
-**ginseng_menu_ai** 是一个基于 **树莓派** 的智能食堂助手系统，通过语音输入、图像识别、触控操作和 RFID 用户识别等多模态能力，为用户提供个性化菜品推荐与菜品信息查询。
+**ginseng_menu_ai** is an intelligent canteen assistant system based on **Raspberry Pi** with a web management backend. The system uses multimodal capabilities such as voice input, image recognition, touch operation, and RFID user identification to provide users with personalized dish recommendations and food information queries.
 
-系统结合 **GLM-4.5V 多模态模型** 和 **DeepSeek-V3.2 文本模型**，自动学习用户偏好并持续优化推荐效果。同时配合 MongoDB 存储菜品数据与用户偏好数据。
+The system combines the **GLM-4.5V Multimodal Model** and **DeepSeek-V3.2 Text Model** to automatically learn user preferences and continuously optimize recommendation results. It also works with MongoDB to store dish data and user preference data.
 
-项目未来会扩展至一个 **Web 端平台（Vue3 + Nest.js）**，让食堂管理员管理菜品、查看数据分析，用户也可以在线查看今日菜品与个性化推荐。
+The project includes a **Web Platform (Vue3 + Nest.js)** that allows canteen administrators to manage dishes, view data analysis, and enables users to view today's dishes and personalized recommendations online.
 
----
+## 📺 Project Demo
 
-## 功能特性
+[![Bilibili Video](https://img.shields.io/badge/bilibili-Demo-FF69B4)](https://www.bilibili.com/video/BV1Hw24BfExM)
 
-### 🔊 语音识别
-
-通过 USB 麦克风采集用户语音输入，支持自然语言问答，例如：
-
-* “今天有什么低脂的菜？”
-* “帮我看看我餐盘里是什么？”
-
-### 🎥 菜品识别（OpenMV H7 PLUS）
-
-通过摄像头拍摄餐盘，调用多模态模型识别菜品，并返回：
-
-* 菜品名称
-* 分类（荤/素/清淡等）
-* 热量估计
-* 推荐搭配建议
-
-### 🖥️ 触控显示（TJC8048X543_011C）
-
-显示各类信息：
-
-* 菜品分析
-* 推荐组合
-* 用户偏好
-* 今日菜单
-  支持基本触控操作。
-
-### 📶 超声波感应
-
-用于用户靠近检测：
-
-* 靠近 → 自动唤醒
-* 离开 → 进入待机
-
-### 📡 RFID 用户识别
-
-使用饭卡读取用户 ID，支持：
-
-* 用户模式（加载偏好）
-* 访客模式（匿名推荐）
-
-### 🧠 大模型驱动的推荐
-
-* 视觉识别 → GLM-4.5V
-* 文本问答 → DeepSeek-V3.2
-* 返回结构化用户偏好 → 存入数据库
-  每次调用都会使用用户历史偏好增强推荐。
-
-### 🗄️ 数据库（MongoDB）
-
-保存：
-
-* 今日菜品
-* 用户偏好
-* 交互日志
-* 视觉识别结果
-* Web 平台数据
+> Click the badge or link above to watch the demo video: [https://www.bilibili.com/video/BV1Hw24BfExM](https://www.bilibili.com/video/BV1Hw24BfExM)
 
 ---
 
-## 系统架构
+## Project Structure
 
-```
-┌──────────────────────────┐
-│         用户交互层         │
-│ 语音输入 / 摄像头 / 触控显示 │
-└───────────────┬──────────┘
-                ↓
-┌───────────────────────────┐
-│       树莓派运行核心逻辑     │
-│ - 传感器管理                │
-│ - 语音识别处理              │
-│ - 调用视觉模型 & 文本模型    │
-│ - 推荐逻辑                 │
-│ - 数据存储                 │
-└───────────────┬───────────┘
-                ↓
-┌─────────────────────────┐
-│         AI 模型服务层     │
-│ GLM-4.5V（视觉）         │
-│ DeepSeek-V3.2（文本）    │
-└───────────────┬─────────┘
-                ↓
-┌───────────────────────────┐
-│          MongoDB 数据库    │
-│ 用户 / 菜品 / 偏好 / 日志等  │
-└───────────────────────────┘
-```
+This project mainly includes the following three core modules:
 
----
+### 1. `src_raspi_app` (Raspberry Pi Client)
+A Python application running on Raspberry Pi, responsible for direct user interaction.
+-   **Core Functions**:
+    -   **Voice Interaction**: Collects voice through USB microphone, supports natural language Q&A.
+    -   **Visual Recognition**: Integrates camera (OpenMV/USB Camera) to recognize dishes on plates.
+    -   **Touch Display**: Drives Nextion serial screen or HDMI screen to display recommendation information and menus.
+    -   **Sensor Integration**:
+        -   **Ultrasonic Sensor**: Detects user proximity and automatically wakes the system.
+        -   **RFID/NFC**: Reads user meal cards to load personalized preferences.
+-   **Entry File**: `src_raspi_app/main.py`
+-   **Main Components**:
+    - `hardware/` - Hardware interface modules (audio, display, sensors, etc.)
+    - `services/` - AI service interfaces and business logic
+    - `database/` - Database connection and operations
+    - `utils/` - Utility functions
+    - `pipeline/` - Data processing pipeline
 
-## 项目目录（建议）
+### 2. `src_web` (Web Management and User Platform)
+A web-based management backend and user frontend for data management and visualization.
+-   **Frontend (Vue3 + Vite + Ant Design Vue)**:
+    -   Administrator Dashboard: View system status and sensor data statistics.
+    -   Dish Management: Add, delete, modify, and query canteen dish information.
+    -   Data Analysis: User preference trends, popular dish statistics.
+-   **Backend (Nest.js + Mongoose)**:
+    -   Provides RESTful API interfaces.
+    -   Connects to MongoDB database, serving both the Raspberry Pi and Web frontend.
+-   **Main Components**:
+    - `src/modules/` - Contains dish management, user management, data analysis modules
+    - `src/models/` - Data model definitions
 
-```
-ginseng_menu_ai/
-├── src/
-│   ├── hardware/         # 各类传感器与硬件驱动
-│   │   ├── mic.py
-│   │   ├── rfid.py
-│   │   ├── ultrasonic.py
-│   │   ├── display.py
-│   │   └── camera.py
-│   ├── ai/
-│   │   ├── vision_glm.py
-│   │   └── text_deepseek.py
-│   ├── db/
-│   │   ├── models.py
-│   │   └── mongo_client.py
-│   ├── core/
-│   │   ├── recommender.py
-│   │   ├── preferences.py
-│   │   ├── menu_loader.py
-│   │   └── pipeline.py
-│   ├── web_api/          # 给 Web 端使用的 API（预留）
-│   └── main.py           # 主程序入口
-├── docs/
-├── README.md
-└── requirements.txt
-```
+### 3. `single_module_test` (Hardware Test Module)
+Contains feasibility test code and driver scripts for individual hardware modules.
+-   Used to independently test whether hardware such as microphones, cameras, ultrasonic sensors, and RFID readers are working properly.
+-   Includes `PCR532_nfcreader.py` (NFC test), `mic_transcription.py` (voice test), etc.
 
 ---
 
-## 安装与运行
+## Features
 
-### 1. 克隆项目
+### 🔊 Voice Recognition
+Collects user voice input through USB microphone, supporting natural language Q&A, such as:
+* "What low-fat dishes are available today?"
+* "Can you check what's on my plate?"
 
+### 🎥 Dish Recognition
+Takes photos of plates through the camera, calls multimodal models to recognize dishes, and returns:
+* Dish name
+* Category (meat/vegetarian/light, etc.)
+* Calorie estimate
+* Recommendation for pairing suggestions
+
+### 🖥️ Touch Display
+Displays various information:
+* Dish analysis
+* Recommended combinations
+* User preferences
+* Today's menu
+
+### 📶 Smart Wake-up
+* **Ultrasonic Sensing**: Automatically wakes up when user is near, enters standby mode when user leaves, energy-saving and environmentally friendly.
+
+### 📡 RFID User Identification
+Uses meal cards to read user ID, supporting:
+* User mode (loads preferences)
+* Guest mode (anonymous recommendations)
+
+### 📊 Web Management Backend
+* **Real-time Monitoring**: View device online status and running data.
+* **Data Insights**: Visualize canteen operation data.
+
+### ☁️ ThingsBoard IoT Platform Integration
+The system integrates with **ThingsBoard** for device telemetry and monitoring:
+* **Real-time Telemetry**: Uploads sensor data such as ultrasonic distance, camera status, microphone status, RFID card reading events.
+* **Remote Control**: Supports issuing commands through ThingsBoard to control Raspberry Pi behavior (such as restarting services, updating configurations).
+* **Data Visualization**: Real-time viewing of canteen traffic and equipment health status on ThingsBoard dashboard.
+
+### 🔒 Localized AI Capabilities
+To improve response speed and protect privacy, lightweight models are deployed at the edge (Raspberry Pi):
+* **Offline Voice Recognition (Vosk)**:
+    * Uses the **Vosk** engine for local speech to text (STT).
+    * Processes wake words and basic commands without internet connection, very low response delay, and protects user voice privacy.
+* **Edge Voice Synthesis (EdgeTTS)**:
+    * Uses **EdgeTTS** to generate high-quality, natural voice feedback.
+    * More natural than traditional offline TTS, while avoiding the high cost and latency of cloud-based TTS.
+
+---
+
+## Installation and Running
+
+### 1. Environment Preparation
+
+#### System Requirements
+- **Raspberry Pi**: 4B or higher, 4GB+ RAM
+- **Python**: 3.8 or higher
+- **Node.js**: 18 or higher
+- **MongoDB**: 4.4 or higher
+- **NPM/Yarn**: For frontend and backend dependency management
+
+#### Configure Environment Variables
+First create and configure the environment variable file:
+```bash
+cp .env.example .env
 ```
-git clone https://github.com/xxx/ginseng_menu_ai.git
-cd ginseng_menu_ai
+Then edit the `.env` file to fill in the relevant API keys and database configuration:
+```
+DEEPSEEK_API_KEY=your_deepseek_api_key
+ZHIPUAI_API_KEY=your_zhipuai_api_key
+DATABASE_URL=your_mongodb_connection_string
 ```
 
-### 2. 安装依赖
+### 2. Raspberry Pi Client (`src_raspi_app`)
 
-```
+Ensure that hardware such as microphones, cameras, and displays are properly connected.
+
+```bash
+# Enter directory
+cd src_raspi_app
+
+# Install dependencies (virtual environment recommended)
 pip install -r requirements.txt
+
+# Run main program
+python main.py
 ```
 
-### 3. 配置环境变量
+#### Configuration File Description
 
-* 智谱 API Key
-* DeepSeek API Key
-* MongoDB 地址
+Project configuration files are located in the `src_raspi_app/config/` directory:
 
-### 4. 运行主程序
+*   **`model.yaml`**: Configures AI model parameters and API Key.
+    *   `vision_model`: Zhipu GLM-4.5V configuration.
+    *   `text_model`: DeepSeek-V3.2 configuration.
+    *   `preference_system`: Personalized recommendation weight settings.
+*   **`hardware.yaml`**: Hardware parameter configuration.
+    *   `ultrasonic`: Ultrasonic wake-up distance (`wake_distance_cm`) and trigger duration.
+*   **`database.yaml`**: Database connection parameters.
+
+#### Hardware List
+
+| Hardware Name | Model/Spec | Connection | Notes |
+| :--- | :--- | :--- | :--- |
+| **Main Board** | Raspberry Pi 4B | - | 4GB+ RAM recommended |
+| **Display** | Nextion Serial Screen | USB/TTL (`/dev/ttyUSB1`) | 115200 baud rate |
+| **Camera** | OpenMV H7 Plus | USB | For dish recognition |
+| **Microphone** | USB Omnidirectional Mic | USB | Voice capture |
+| **Ultrasonic** | HC-SR04 | GPIO | Distance detection |
+| **Reader** | PN532 NFC/RFID | I2C/SPI/UART (`/dev/ttyUSB0`) | ID card reading |
+
+### 3. Web Platform (`src_web`)
+
+#### Backend
+
+```bash
+cd src_web/backend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run start:dev
+```
+
+#### Frontend
+
+```bash
+cd src_web/frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+---
+
+## System Architecture
+
+```mermaid
+graph TD
+    subgraph "User Interaction Layer"
+        Mic["Microphone (USB)"] -->|Audio Stream| Vosk["Vosk Offline ASR"]
+        Camera["Camera (OpenMV / USB)"] -->|Image Stream| RPi_Core["RPi Core"]
+        Touch["Touchscreen (Serial)"] -->|Display / Touch| RPi_Core
+        RFID["RFID Reader"] -->|User ID| RPi_Core
+        Ultrasonic["Ultrasonic Sensor"] -->|Distance Data| RPi_Core
+    end
+
+    subgraph "Edge Computing Layer (Raspberry Pi)"
+        Vosk -->|Text Command| RPi_Core_Main["Main Controller (Python)"]
+        RPi_Core_Main -->|Text Reply| EdgeTTS["EdgeTTS TTS Engine"]
+        EdgeTTS -->|Audio Output| Speaker["Speaker"]
+        RPi_Core_Main -->|Telemetry Upload| TB_Client["ThingsBoard Client"]
+        RPi_Core_Main -->|Query / Update| DB_Client["MongoDB Client"]
+    end
+
+    subgraph "Cloud Services Layer"
+        RPi_Core_Main -->|Image Upload| GLM["GLM-4.5V Multimodal Model"]
+        GLM -->|Dish Recognition Result| RPi_Core_Main
+        RPi_Core_Main -->|Complex Q&A| DeepSeek["DeepSeek-V3.2 Text Model"]
+        TB_Client -->|HTTP| ThingsBoard["ThingsBoard IoT Platform"]
+    end
+
+    subgraph "Data Layer"
+        DB_Client <-->|Read / Write| MongoDB["MongoDB Database"]
+        Web_Backend <-->|Read / Write| MongoDB
+    end
+
+    subgraph "Web Management Platform"
+        Web_Frontend["Vue3 Frontend"] <-->|API| Web_Backend["NestJS Backend"]
+        Web_Backend -->|Management| RPi_Core_Main
+    end
 
 ```
-python src/main.py
+
+---
+
+## Development Guide
+
+### Project Structure Details
+
+```
+ginseng-menu-ai/
+├── .env.example          # Environment variable example file
+├── requirements.txt      # Project dependencies (mainly for Raspberry Pi client)
+├── README.md            # Project documentation
+├── README.en.md         # English project documentation
+├── LICENSE              # License file
+├── docs/                # Project documentation
+│   ├── hardware/        # Hardware-related documentation
+│   └── local_models_archive/ # Local model documentation
+├── local_models/        # Local model files
+│   └── vosk-model-small-en-us-0.15/ # Vosk voice recognition model
+├── single_module_test/  # Hardware module standalone test code
+│   ├── edgetts_test.py  # EdgeTTS test
+│   ├── mic_transcription.py # Microphone transcription test
+│   ├── PCR532_nfcreader.py # NFC reader test
+│   ├── ultrasonic_ranging.py # Ultrasonic ranging test
+│   └── OpenMv_camera/   # OpenMV camera test code
+├── src_raspi_app/       # Raspberry Pi client source code
+│   ├── main.py          # Main program entry
+│   ├── config/          # Configuration files
+│   ├── database/        # Database related
+│   ├── hardware/        # Hardware interface implementation
+│   ├── pipeline/        # Data processing pipeline
+│   ├── services/        # Service layer (AI interfaces, etc.)
+│   └── utils/           # Utility functions
+└── src_web/             # Web platform source code
+    ├── backend/         # Backend source code (Nest.js)
+    └── frontend/        # Frontend source code (Vue3)
 ```
 
----
+### Contribution Guidelines
 
-## Web 平台（扩展模块）
+1. Fork the project
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-未来将开发一个可部署在 Vercel 的 Web 管理端：
+### Directory Description
 
-### 管理端功能
+*   **`src_raspi_app`**: Raspberry Pi client core code, written in Python
+    *   `hardware/`: Modules for interacting with various hardware devices
+    *   `services/`: Modules for interacting with AI models and external services
+    *   `database/`: MongoDB database operation related code
+    *   `utils/`: Various utility functions
+    *   `pipeline/`: Data processing pipeline related code
 
-* 菜品新增 / 修改 / 删除
-* 上传菜品图片
-* 查看用户偏好统计
-* 查看今日推荐热度趋势
-* 菜品库存与销量管理（可选）
+*   **`src_web/backend`**: Web backend, using Nest.js framework
+    *   `src/modules/`: Implementation of different functional modules
+    *   `src/models/`: Database model definitions
+    *   `src/controllers/`: API controllers
+    *   `src/services/`: Business logic services
 
-### 用户端功能
-
-* 今日菜单查看
-* 个性化推荐
-* 搭配建议
-* 历史偏好展示（可选）
-
-技术栈：
-
-* **Frontend：Vue3 + Vite**
-* **Backend：Nest.js（Serverless 方案）**
-* **Deploy：Vercel**
-* 与树莓派共用 MongoDB
-
----
-
-# ROADMAP
-
-## 📌 Phase 1：核心系统搭建（树莓派）
-
-### 1. 基础硬件驱动
-
-* [ ] RFID 读取
-* [ ] 超声波距离检测
-* [x] 麦克风语音采集
-* [ ] 摄像头接入（OpenMV）
-* [ ] 显示屏基础 UI
-
-### 2. 多模态处理
-
-* [ ] 接入 GLM-4.5V 视觉 API
-* [ ] 接入 DeepSeek-V3.2 文本 API
-* [ ] 构建菜品识别流程
-* [ ] 构建自然语言问答流程
-
-### 3. 个性化推荐
-
-* [ ] 用户偏好数据结构设计
-* [ ] 用户偏好更新逻辑
-* [ ] 推荐结果融合（视觉 + 文本）
-
-### 4. 数据库
-
-* [ ] 菜品 Schema
-* [ ] 用户 Schema
-* [ ] 偏好 Schema
-* [ ] MongoDB 同步机制
+*   **`src_web/frontend`**: Web frontend, using Vue3 framework
+    *   `src/components/`: Reusable Vue components
+    *   `src/views/`: Page view components
+    *   `src/api/`: API request wrappers
 
 ---
 
-## 📌 Phase 2：体验优化
+## License
 
-* [ ] 提醒音与 UI 动画
-* [ ] 触控界面交互优化
-* [ ] 摄像头动态曝光优化
-* [ ] 推荐解释（如：“因为你喜欢清淡…”）
-
----
-
-## 📌 Phase 3：Web 管理平台（扩展）
-
-### 后端（Nest.js）
-
-* [ ] 菜品 CRUD 接口
-* [ ] 用户偏好查询 API
-* [ ] 今日菜单管理
-* [ ] 数据统计 API
-
-### 前端（Vue3）
-
-* [ ] 菜品管理后台
-* [ ] 统计图表（ECharts 或 Chart.js）
-* [ ] 今日菜单展示页面
-* [ ] 用户偏好分析面板
-* [ ] 用户端菜品浏览与推荐页面
-
----
-
-## 📌 Phase 4：高级功能（可选）
-
-* [ ] 菜品热量与营养全自动分析
-* [ ] 与步数/健康 App 的数据联动
-* [ ] 用户口味季节趋势分析
-* [ ] 自动生成今日菜品海报（AI）
-* [ ] 小程序 / App 扩展
-* [ ] 食堂数据可视化看板
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
