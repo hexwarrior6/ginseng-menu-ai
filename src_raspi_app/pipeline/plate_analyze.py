@@ -7,6 +7,10 @@ import pytz
 from bson import ObjectId
 from hardware.camera.raspberry_camera import capture_image
 from zhipuai import ZhipuAI
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 导入数据库模块
 import sys
@@ -22,7 +26,7 @@ from services.telemetry import send_telemetry
 
 CAMERA_TOKEN = "c1zm08l5c2ko91v785eh"
 
-ZHIPUAI_API_KEY = "e62abd4ebbba488ea4a96771929b6c6d.41RwSM4Nd0Y92AEN"
+ZHIPUAI_API_KEY = os.getenv("ZHIPUAI_API_KEY")
 IMG_DIR = "src_raspi_app/temp/captured_dish"
 
 # 菜品列表提示词
