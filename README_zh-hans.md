@@ -163,6 +163,8 @@ python main.py
 
 #### 硬件清单
 
+![](./docs/assets/hardwares_map.avif)
+
 | 硬件名称 | 型号/规格 | 连接方式 | 备注 |
 | :--- | :--- | :--- | :--- |
 | **主控板** | Raspberry Pi 4B | USB | 4GB+ 内存推荐 |
@@ -202,42 +204,7 @@ npm run dev
 
 ## 系统架构
 
-```mermaid
-graph TD
-    subgraph "User Interaction Layer"
-        Mic["Microphone (USB)"] -->|Audio Stream| Vosk["Vosk Offline ASR"]
-        Camera["Camera (OpenMV / USB)"] -->|Image Stream| RPi_Core["RPi Core"]
-        Touch["Touchscreen (Serial)"] -->|Display / Touch| RPi_Core
-        RFID["RFID Reader"] -->|User ID| RPi_Core
-        Ultrasonic["Ultrasonic Sensor"] -->|Distance Data| RPi_Core
-    end
-
-    subgraph "Edge Computing Layer (Raspberry Pi)"
-        Vosk -->|Text Command| RPi_Core_Main["Main Controller (Python)"]
-        RPi_Core_Main -->|Text Reply| EdgeTTS["EdgeTTS TTS Engine"]
-        EdgeTTS -->|Audio Output| Speaker["Speaker"]
-        RPi_Core_Main -->|Telemetry Upload| TB_Client["ThingsBoard Client"]
-        RPi_Core_Main -->|Query / Update| DB_Client["MongoDB Client"]
-    end
-
-    subgraph "Cloud Services Layer"
-        RPi_Core_Main -->|Image Upload| GLM["GLM-4.5V Multimodal Model"]
-        GLM -->|Dish Recognition Result| RPi_Core_Main
-        RPi_Core_Main -->|Complex Q&A| DeepSeek["DeepSeek-V3.2 Text Model"]
-        TB_Client -->|HTTP| ThingsBoard["ThingsBoard IoT Platform"]
-    end
-
-    subgraph "Data Layer"
-        DB_Client <-->|Read / Write| MongoDB["MongoDB Database"]
-        Web_Backend <-->|Read / Write| MongoDB
-    end
-
-    subgraph "Web Management Platform"
-        Web_Frontend["Vue3 Frontend"] <-->|API| Web_Backend["NestJS Backend"]
-        Web_Backend -->|Management| RPi_Core_Main
-    end
-
-```
+![](./docs/assets/system_architecture.avif)
 
 ---
 
