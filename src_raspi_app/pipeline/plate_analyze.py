@@ -209,38 +209,36 @@ def capture_and_identify_dishes_for_user(uid):
     with open(result, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
     
-    # 改进的系统提示词（英文）
-    system_prompt = f"""You are a helpful food identification assistant. Analyze the food image and identify ALL dishes on the plate.
+    # 优化后的系统提示词
+    system_prompt = f"""You are a food analysis assistant. Identify dishes and provide nutritional info with brief descriptions.
 
-CRITICAL REQUIREMENTS:
-1. You MUST return ONLY valid JSON format, no additional text
-2. Use STANDARDIZED dish names from the reference list below
-3. The JSON must contain BOTH the structured data AND a user-friendly text response
-
-REFERENCE DISH NAMES (use these EXACT names):
+REFERENCE DISHES (use exact names):
 {CANTEEN_DISHES_PROMPT}
 
-STRICT JSON FORMAT (you must return EXACTLY this structure):
+RETURN ONLY THIS JSON (no extra text):
 {{
-    "user_response": "Hello! I've identified the following dishes on your plate:\\n\\n1. Dish Name 1 - Brief introduction\\n2. Dish Name 2 - Brief introduction\\n\\nEnjoy your meal!",
+    "user_response": "YOUR MEAL:\\n\\n1. [Dish1] - [Brief intro 8-12 words]\\n   [cal]kcal | P:[g]g C:[g]g F:[g]g\\n\\n2. [Dish2] - [Brief intro 8-12 words]\\n   [cal]kcal | P:[g]g C:[g]g F:[g]g\\n\\nTOTAL: [total_cal]kcal | [Health tip]",
     "dishes": [
         {{
-            "name": "Standardized dish name from reference list",
+            "name": "[Exact dish name from reference]",
             "confidence": 0.95,
-            "description": "Brief description"
+            "description": "[Brief 8-12 word intro]",
+            "calories": 250,
+            "protein": 15,
+            "carbs": 30,
+            "fat": 8
         }}
     ]
 }}
 
-TEXT RESPONSE GUIDELINES (for the user_response field):
-- List all identified dishes clearly with numbers
-- Provide brief interesting facts about each dish
-- Keep it concise but informative
-- Use this exact format with line breaks
-
-IMPORTANT:
-- Return ONLY the JSON object, no other text
-- No <|begin_of_box|> or <|end_of_box|> markers"""
+RESPONSE RULES:
+- MAX 300 characters for user_response
+- Each dish: name, brief intro (8-12 words), nutrition on next line
+- Description: highlight key ingredient or cooking style
+- Show total calories with health tip
+- Use \\n for line breaks, \\n\\n between dishes
+- Estimate nutrition if uncertain
+- Be concise and informative"""
 
     try:
         response = client.chat.completions.create(
@@ -255,7 +253,7 @@ IMPORTANT:
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Please analyze this food image and identify all dishes. Return ONLY the JSON object with both the user response in English and the structured dish data. Use exact standardized names from the reference list."
+                            "text": "Analyze this meal. Return ONLY JSON with nutrition data and brief descriptions. Keep user_response under 300 chars."
                         },
                         {
                             "type": "image_url",
@@ -362,7 +360,10 @@ IMPORTANT:
             telemetry_data = {
                 "dish_name": dish.get('name'),
                 "confidence": dish.get('confidence'),
-                "description": dish.get('description')
+                "calories": dish.get('calories'),
+                "protein": dish.get('protein'),
+                "carbs": dish.get('carbs'),
+                "fat": dish.get('fat')
             }
             send_telemetry(CAMERA_TOKEN, telemetry_data)
             # Small delay to ensure order if needed, though requests are synchronous
@@ -373,6 +374,7 @@ IMPORTANT:
         user_response = analysis_result['user_response']
         print("📤 Returning text response to user:")
         print(user_response)
+        print(f"📏 Response length: {len(user_response)} characters")
         print("=" * 50)
 
         # Log the successful completion of the process

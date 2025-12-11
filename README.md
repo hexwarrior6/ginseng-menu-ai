@@ -1,8 +1,26 @@
-English | [简体中文](README_zh-hans.md)
+<div align="center"><a name="readme-top"></a>
 
-# ginseng_menu_ai
+<img height="120" src="./docs/assets/icon.png">
+
+<h1>ginseng_menu_ai</h1>
 
 Intelligent Canteen Multimodal Dish Recommendation System (Raspberry Pi + AI + Web Dashboard)
+
+[![Gitee Repo](https://img.shields.io/badge/Gitee-Repository-red?logo=gitee)](https://gitee.com/hexwarrior6/ginseng-menu-ai)
+[![GitHub Wiki](https://img.shields.io/badge/GitHub-Wiki-blue?logo=github)](https://github.com/hexwarrior6/ginseng-menu-ai/wiki)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js)](https://nodejs.org/)
+[![Vue3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vue.js)](https://vuejs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-9-E0234E?logo=nestjs)](https://nestjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4.4%2B-47A248?logo=mongodb)](https://www.mongodb.com/)
+[![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4B%2B-C51A4A?logo=raspberry-pi)](https://www.raspberrypi.com/)
+
+English · [简体中文](README_zh-hans.md)
+
+</div>
+
+---
 
 ## Introduction
 
@@ -14,9 +32,12 @@ The project includes a **Web Platform (Vue3 + Nest.js)** that allows canteen adm
 
 ## 📺 Project Demo
 
-[![Bilibili Video](https://img.shields.io/badge/bilibili-Demo-FF69B4)](https://www.bilibili.com/video/BV1Hw24BfExM)
+<a href="https://www.bilibili.com/video/BV1Hw24BfExM">
+  <img src="docs/assets/video_cover.avif" alt="Demo Video" style="height: 200px; width: auto;">
+</a>
 
-> Click the badge or link above to watch the demo video: [https://www.bilibili.com/video/BV1Hw24BfExM](https://www.bilibili.com/video/BV1Hw24BfExM)
+> 点击上方图片查看演示视频：  
+> https://www.bilibili.com/video/BV1Hw24BfExM
 
 ---
 
@@ -163,6 +184,8 @@ Project configuration files are located in the `src_raspi_app/config/` directory
 
 #### Hardware List
 
+![](./docs/assets/hardwares_map.avif)
+
 | Hardware Name | Model/Spec | Connection | Notes |
 | :--- | :--- | :--- | :--- |
 | **Main Board** | Raspberry Pi 4B | - | 4GB+ RAM recommended |
@@ -202,42 +225,7 @@ npm run dev
 
 ## System Architecture
 
-```mermaid
-graph TD
-    subgraph "User Interaction Layer"
-        Mic["Microphone (USB)"] -->|Audio Stream| Vosk["Vosk Offline ASR"]
-        Camera["Camera (OpenMV / USB)"] -->|Image Stream| RPi_Core["RPi Core"]
-        Touch["Touchscreen (Serial)"] -->|Display / Touch| RPi_Core
-        RFID["RFID Reader"] -->|User ID| RPi_Core
-        Ultrasonic["Ultrasonic Sensor"] -->|Distance Data| RPi_Core
-    end
-
-    subgraph "Edge Computing Layer (Raspberry Pi)"
-        Vosk -->|Text Command| RPi_Core_Main["Main Controller (Python)"]
-        RPi_Core_Main -->|Text Reply| EdgeTTS["EdgeTTS TTS Engine"]
-        EdgeTTS -->|Audio Output| Speaker["Speaker"]
-        RPi_Core_Main -->|Telemetry Upload| TB_Client["ThingsBoard Client"]
-        RPi_Core_Main -->|Query / Update| DB_Client["MongoDB Client"]
-    end
-
-    subgraph "Cloud Services Layer"
-        RPi_Core_Main -->|Image Upload| GLM["GLM-4.5V Multimodal Model"]
-        GLM -->|Dish Recognition Result| RPi_Core_Main
-        RPi_Core_Main -->|Complex Q&A| DeepSeek["DeepSeek-V3.2 Text Model"]
-        TB_Client -->|HTTP| ThingsBoard["ThingsBoard IoT Platform"]
-    end
-
-    subgraph "Data Layer"
-        DB_Client <-->|Read / Write| MongoDB["MongoDB Database"]
-        Web_Backend <-->|Read / Write| MongoDB
-    end
-
-    subgraph "Web Management Platform"
-        Web_Frontend["Vue3 Frontend"] <-->|API| Web_Backend["NestJS Backend"]
-        Web_Backend -->|Management| RPi_Core_Main
-    end
-
-```
+![](./docs/assets/system_architecture.avif)
 
 ---
 
