@@ -1,8 +1,26 @@
-English | [简体中文](README_zh-hans.md)
+<div align="center"><a name="readme-top"></a>
 
-# ginseng_menu_ai
+<img height="120" src="./docs/assets/icon.png">
+
+<h1>ginseng_menu_ai</h1>
 
 Intelligent Canteen Multimodal Dish Recommendation System (Raspberry Pi + AI + Web Dashboard)
+
+[![Gitee Repo](https://img.shields.io/badge/Gitee-Repository-red?logo=gitee)](https://gitee.com/hexwarrior6/ginseng-menu-ai)
+[![GitHub Wiki](https://img.shields.io/badge/GitHub-Wiki-blue?logo=github)](https://github.com/hexwarrior6/ginseng-menu-ai/wiki)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js)](https://nodejs.org/)
+[![Vue3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vue.js)](https://vuejs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-9-E0234E?logo=nestjs)](https://nestjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4.4%2B-47A248?logo=mongodb)](https://www.mongodb.com/)
+[![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4B%2B-C51A4A?logo=raspberry-pi)](https://www.raspberrypi.com/)
+
+English · [简体中文](README_zh-hans.md)
+
+</div>
+
+---
 
 ## Introduction
 
@@ -14,9 +32,12 @@ The project includes a **Web Platform (Vue3 + Nest.js)** that allows canteen adm
 
 ## 📺 Project Demo
 
-[![Bilibili Video](https://img.shields.io/badge/bilibili-Demo-FF69B4)](https://www.bilibili.com/video/BV1Hw24BfExM)
+<a href="https://www.bilibili.com/video/BV1Hw24BfExM">
+  <img src="docs/assets/video_cover.avif" alt="Demo Video" style="height: 200px; width: auto;">
+</a>
 
-> Click the badge or link above to watch the demo video: [https://www.bilibili.com/video/BV1Hw24BfExM](https://www.bilibili.com/video/BV1Hw24BfExM)
+> 点击上方图片查看演示视频：  
+> https://www.bilibili.com/video/BV1Hw24BfExM
 
 ---
 

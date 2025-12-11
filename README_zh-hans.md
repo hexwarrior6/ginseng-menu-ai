@@ -1,8 +1,26 @@
-[English](README.md) | 简体中文
+<div align="center"><a name="readme-top"></a>
 
-# ginseng_menu_ai
+<img height="120" src="./docs/assets/icon.png">
 
-智能食堂多模态菜品推荐系统（Raspberry Pi + AI + Web Dashboard）
+<h1>ginseng_menu_ai</h1>
+
+智能食堂多模态菜品推荐系统（树莓派 + 人工智能 + 网页仪表盘）
+
+[![Gitee Repo](https://img.shields.io/badge/Gitee-Repository-red?logo=gitee)](https://gitee.com/hexwarrior6/ginseng-menu-ai)
+[![GitHub Wiki](https://img.shields.io/badge/GitHub-Wiki-blue?logo=github)](https://github.com/hexwarrior6/ginseng-menu-ai/wiki)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js)](https://nodejs.org/)
+[![Vue3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vue.js)](https://vuejs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-9-E0234E?logo=nestjs)](https://nestjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4.4%2B-47A248?logo=mongodb)](https://www.mongodb.com/)
+[![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4B%2B-C51A4A?logo=raspberry-pi)](https://www.raspberrypi.com/)
+
+[English](README.md) · 简体中文
+
+</div>
+
+---
 
 ## 简介
 
@@ -14,9 +32,10 @@
 
 ## 📺 项目演示
 
-[![Bilibili Video](https://img.shields.io/badge/bilibili-视频演示-FF69B4)](https://www.bilibili.com/video/BV1Hw24BfExM)
+[![Demo Video](docs/assets/video_cover.avif)](https://www.bilibili.com/video/BV1Hw24BfExM)
 
-> 点击上方徽章或链接观看演示视频：[https://www.bilibili.com/video/BV1Hw24BfExM](https://www.bilibili.com/video/BV1Hw24BfExM)
+> 点击上方图片查看演示视频：  
+> [https://www.bilibili.com/video/BV1Hw24BfExM](https://www.bilibili.com/video/BV1Hw24BfExM)
 
 ---
 
