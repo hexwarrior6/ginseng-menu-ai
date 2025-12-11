@@ -36,7 +36,7 @@ The project includes a **Web Platform (Vue3 + Nest.js)** that allows canteen adm
   <img src="docs/assets/video_cover.avif" alt="Demo Video" style="height: 200px; width: auto;">
 </a>
 
-> 点击上方图片查看演示视频：  
+> Click on the image above to view the demonstration video:  
 > https://www.bilibili.com/video/BV1Hw24BfExM
 
 ---
