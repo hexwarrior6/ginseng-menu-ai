@@ -15,6 +15,7 @@ Intelligent Canteen Multimodal Dish Recommendation System (Raspberry Pi + AI + W
 [![NestJS](https://img.shields.io/badge/NestJS-9-E0234E?logo=nestjs)](https://nestjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-4.4%2B-47A248?logo=mongodb)](https://www.mongodb.com/)
 [![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4B%2B-C51A4A?logo=raspberry-pi)](https://www.raspberrypi.com/)
+[![View Code Wiki](https://www.gstatic.com/_/boq-sdlc-agents-ui/_/r/YUi5dj2UWvE.svg)](https://codewiki.google/github.com/hexwarrior6/ginseng-menu-ai)
 
 English · [简体中文](README_zh-hans.md)
 
